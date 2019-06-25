@@ -37,7 +37,6 @@ Run_ID = sys.argv[2]
 filelist = glob.glob(Run_ID+r'_'+Locus+r'_*.output.csv')
 control_list = [Run_ID+r'_'+Locus+r'_5',Run_ID+r'_'+Locus+r'_6']
 Treatment_list = [Run_ID+r'_'+Locus+r'_1',Run_ID+r'_'+Locus+r'_2',Run_ID+r'_'+ Locus+r'_3',Run_ID+r'_'+Locus+r'_4']
-# sample_list = control_list + Treatment_list
 
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------
 

@@ -135,7 +135,7 @@ for keys in data:
 
     # data[keys].to_csv(keys+r'_logic.csv', sep=',', header=True,index=False) #<-------- Check suspected artifact logic
 
-   # # __Calculated Variables for New Header____# #<---------------- NEW LOGIC BLOCK
+   # # __Calculated Variables for New Header____# 
     Proper_reads = int(header_dict[keys][1].split(',')[1])
     Proper_reads_edit = sum((sample_edited.Hit.astype(int)))
     Total_Read_Pair = int(header_dict[keys][0].split(',')[1])

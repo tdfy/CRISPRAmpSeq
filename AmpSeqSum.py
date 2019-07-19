@@ -6,7 +6,7 @@
 # Date:	May 2019
 #
 # Purpose:
-# 1. Calculates Indel% 
+# 1. Calculates Indel%
 # 2. Concatenates Knock Out and Genotype Composition summary files from AmpSeqQC.py
 # 3. Slices DF and transposes individual DFs
 # 4. Reformats table
@@ -21,15 +21,15 @@ import os
 import subprocess
 from subprocess import call
 
- 
+
 # # User Variables:--------------------------------------------------------------------------------------------------------------
 
 path = sys.argv[1]
 os.chdir(path)
 
 
-sample_dict= {"1":"VP-19-002.01.G1/TDN,R1C1 S1D5","2":"VP-19-002.01.G1/TDN,R1C1 S1D7","3":"VP-19-002.01.G1/TDN,R1C1 S1D9","4":"VP-19-002.01.G1/TDN,R1C1 Post-H",
-              "5":"VP-19-002.01.G1 D(-4)_1","6":"VP-19-002.01.G1 D(-4)_2"}
+sample_dict= {"1":"VP-19-002.02.G1/TDN,R1C1 S1D5","2":"VP-19-002.02.G1/TDN,R1C1 S1D7","3":"VP-19-002.02.G1/TDN,R1C1 Post-H","4":"VP-19-002.01.G1 D(-2)",
+              "5":"VP-19-002.02.G1/Pre-TDN,D0"}
 
 
 KO_cat = []
@@ -62,7 +62,7 @@ combo_pi_pivot['Percentage'] = round(combo_pi_pivot['Percentage'],2)
 combo_pi_pivot['Samp_No'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(2)
 combo_pi_pivot['Locus'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(1)
 
-indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage'])) 
+indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage']))
 
 
 # #__________________KO Summary Formating____________________________#
@@ -72,11 +72,11 @@ call(script,shell=True)
 
 ko_sum = pd.read_csv('ko_merge.csv', sep=",", dtype =object,header=None)
 
-hope = np.array_split(ko_sum, 24) #<---- 120 rows in merged file / 5 lines per samples => 24 
+hope = np.array_split(ko_sum, 20) #<---- 120 rows in merged file / 5 lines per samples => 24
 
-
+print(hope)
 for i in hope:
-    
+
     i_tran= i.transpose()
     i_tran.columns = ['Sample Name:','Total Read Pairs:','Proper Read Pairs:','Total usable percentage:','Sample Edit Level:']
     KO_cat.append(i_tran) ### appends sub-dfs
@@ -99,7 +99,7 @@ KO_df = KO_df[['Specimen_Name','Locus','Total Read Pairs:','Proper Read Pairs:',
 KO_df['Total usable percentage:'] = round(KO_df['Total usable percentage:'].astype(float),2)
 KO_df['Sample Edit Level:'] = round(KO_df['Sample Edit Level:'].astype(float),2)
 
-# #_______________Output Block_____________________________________________# # 
-KO_df.to_csv('VP-19-002.01.G1_summary_table.csv', sep=',', header=True,index=False)
-
+# #_______________Output Block_____________________________________________# #
+KO_df.to_csv('VP-19-002.02.G1_summary_table.csv', sep=',', header=True,index=False)
+#
 print(KO_df)

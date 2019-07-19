@@ -27,6 +27,7 @@ import pandas as pd
 import glob
 import os
 from cigar import Cigar
+import collections
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
 
@@ -34,11 +35,16 @@ Locus = sys.argv[1]
 path = sys.argv[3]
 os.chdir(path)
 Run_ID = sys.argv[2]
+Noise = sys.argv[4]
 filelist = glob.glob(Run_ID+r'_'+Locus+r'_*.output.csv')
-control_list = [Run_ID+r'_'+Locus+r'_5',Run_ID+r'_'+Locus+r'_6']
-Treatment_list = [Run_ID+r'_'+Locus+r'_1',Run_ID+r'_'+Locus+r'_2',Run_ID+r'_'+ Locus+r'_3',Run_ID+r'_'+Locus+r'_4']
+control_list = [Run_ID+r'_'+Locus+r'_4']
+Treatment_list = [Run_ID+r'_'+Locus+r'_5',Run_ID+r'_'+Locus+r'_1',Run_ID+r'_'+Locus+r'_2',Run_ID+r'_'+ Locus+r'_3']
+extension = '.output.csv'
+list_1 = Treatment_list + control_list
+filelist = [x + extension for x in list_1]
 
-# # Global Declarations:--------------------------------------------------------------------------------------------------------------
+
+# Global Declarations:--------------------------------------------------------------------------------------------------------------
 
 CIGAR_cat = []
 data = {}
@@ -50,6 +56,7 @@ String_list = ['I','D','X']
 TRAC3_SNPlist = ['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46=']
 CIITA_SNPlist = ['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S']
 PIK_SNPlist = ['39=1D182=']
+B2M_SNPlist = []
 
 print("Control Samples:",control_list)
 print("Test Samples:",filelist)
@@ -58,17 +65,27 @@ print("Test Samples:",filelist)
 
 for sample in filelist:
     data[sample[:-11]] = pd.read_csv(sample, sep=",", dtype =object,skiprows=4)
+#
+    # data[sample[:-11]] = data[sample[:-11]][data[sample[:-11]]['Percentage'].astype(float) >= .1] #<--------- threshold logic
 
-    data[sample[:-11]] = data[sample[:-11]][data[sample[:-11]]['Percentage'].astype(float) >= .1] #<--------- threshold logic
+    #####____NEW LOGIC BLOCK____20190710____####
 
-    if Locus == "TRAC3":
+    data[sample[:-11]] = data[sample[:-11]][data[sample[:-11]]['Percentage'].astype(float) >= .01] #<--------- threshold logic (.01)
+
+    ###_________________________________________________________####
+
+
+    if Locus == "TRAC":
        data[sample[:-11]].iloc[:,4] = np.where((data[sample[:-11]].iloc[:,5].isin(TRAC3_SNPlist)), 'NoEdit', data[sample[:-11]].iloc[:,4])
     elif Locus == "CIITA":
         data[sample[:-11]].iloc[:,4] = np.where((data[sample[:-11]].iloc[:,5].isin(CIITA_SNPlist)), 'NoEdit', data[sample[:-11]].iloc[:,4])
     elif Locus == "PIK":
         data[sample[:-11]].iloc[:,4] = np.where((data[sample[:-11]].iloc[:,5].isin(PIK_SNPlist)), 'NoEdit', data[sample[:-11]].iloc[:,4])
+    elif Locus == "B2M":
+        data[sample[:-11]].iloc[:,4] = np.where((data[sample[:-11]].iloc[:,5].isin(B2M_SNPlist)), 'NoEdit', data[sample[:-11]].iloc[:,4])
+
     else:
-        print("B2M Target")
+        print("Target Error")
 
 for x in [data[x] for x in control_list]:
     x = x.iloc[:,5]
@@ -93,11 +110,49 @@ elif len(CIGAR_df.columns) == 3:
         u= u1|u2|u3
         print("Length of Artifacts:",len(u1),len(u2),len(u3))
 
+elif len(CIGAR_df.columns) == 1:
+            u = []
+            cig_df = pd.DataFrame()
+            pos_list = []
+            var_list = []
+            cig_pack = []
+
+            changes = CIGAR_df.iloc[:,0].tolist()
+            for cig in changes:
+                CIGAR_edit = Cigar(cig)
+                CIG_list = list(CIGAR_edit.items())
+
+                for index, tup in enumerate(CIG_list):
+                    ch = CIG_list[index][1]
+                    if ch == 'X':
+
+                        slice_l = CIG_list[:index + 1]
+                        pos = str(sum([t[0] for t in slice_l]))
+                        variant = slice_l[-1][1]
+                        pos_list.append(pos)
+
+                    else:
+                        pass
+
+            artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 50] #<--------- Threshold for substitution pileup (285) ORG--500
+
+            print(artifact_pos)
+
+            new_list = [int(x)-1 for x in artifact_pos]
+
+            for keys in data:
+                data[keys]['sus_artifact'] = 'real'
+                for row in keys:
+                    for position in new_list:
+                        data[keys]['Type'] = np.where((data[keys]['Type']=='S') & (position in data[keys]['CIGAR']),'NoEdit',data[keys]['Type'])
+
+
 else:
-    print("Control Sample Number is <2 or >3")
+    print("No Control Present")
+    exit()
 
 print("Number of Artifacts:",len(u))
-
+#
 # # _______Export_list________________________#
 
 with open(Locus+r"_artifacts.txt", "w") as output:
@@ -117,39 +172,60 @@ for keys in data:
     pos_list = []
     var_list = []
     cig_pack = []
+    varlen_list = []
 
     QC = pd.read_csv(file, sep=",", dtype =object,skiprows=4)
 
-    data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
-        (data[keys].iloc[:,5] == '*') ,'artifact','real')
+    # data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
+    #     (data[keys].iloc[:,5] == '*') ,'artifact','real')
 
 
-    data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].str.contains('D|I')==False) & (data[keys].iloc[:,2].astype(float) > 4) &
-        (data[keys].iloc[:,4] != 'NoEdit'),'artifact',data[keys]['sus_artifact']) #<----------------- Removes substitution artifacts that do not contain Indel and are observed at a >4% freq
+    # data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].str.contains('D|I')==False) & (data[keys].iloc[:,2].astype(float) > 4) &
+    #     (data[keys].iloc[:,4] != 'NoEdit'),'artifact',data[keys]['sus_artifact']) #<----------------- Removes substitution artifacts that do not contain Indel and are observed at a >4% freq
 
+        #####____NEW LOGIC BLOCK____20190710____####
+
+    data[keys]['sus_artifact'] = 'real'
+
+    # data[keys].iloc[:,4] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
+    #     (data[keys].iloc[:,5] == '*') ,'NoEdit',data[keys].iloc[:,4])
+    #
+    #
+    # data[keys].iloc[:,4] = np.where((data[keys].iloc[:,5].str.contains('D|I')==False),'NoEdit', data[keys].iloc[:,4]) #<----------------- Redefines reads that are substitutions at a freq<4 as 'NoEdit'---rather than discard artifacts that do not contain Indel and are observed at a >4% freq
+
+        #####_____________________________________________________________________________######
+#
+#
     # print(data[keys])
-
+#
     sample_edited = data[keys][data[keys]['sus_artifact'].str.contains('real')].copy()
 
     artifact_sum = data[keys][data[keys]['sus_artifact'].str.contains('artifact')].copy() #<----------------- Artifact summary
 
     # data[keys].to_csv(keys+r'_logic.csv', sep=',', header=True,index=False) #<-------- Check suspected artifact logic
 
-   # # __Calculated Variables for New Header____# 
+   # # __Calculated Variables for New Header____#
     Proper_reads = int(header_dict[keys][1].split(',')[1])
     Proper_reads_edit = sum((sample_edited.Hit.astype(int)))
     Total_Read_Pair = int(header_dict[keys][0].split(',')[1])
     Total_usable_percentage_edit = (float(Proper_reads_edit)/float(Total_Read_Pair))*100
     sample_edited.iloc[:,2] = (sample_edited.iloc[:,1].astype(int)/Proper_reads_edit)*100
     QC_level= sample_edited[~sample_edited['Type'].str.contains('NoEdit')]
-    Sample_Edit_Level = sum(QC_level.Percentage)
+
+    # print('#------------------->', len(QC_level.index))
+
+    if len(QC_level.index) == 0:
+        Sample_Edit_Level = '0.0'
+    else:
+        Sample_Edit_Level = round(sum(QC_level.Percentage),4)
+
     # sample_level.to_csv(keys+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
 
     hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit'])) #<-------- Creates dictionary of read number associated with CIGAR string
 
     # #___Create & Append New Header____#
 
-    new_head = pd.DataFrame({'mask': [keys,Total_Read_Pair, Proper_reads_edit,Total_usable_percentage_edit, Sample_Edit_Level],
+    new_head = pd.DataFrame({'mask': [keys,Total_Read_Pair, Proper_reads_edit,Total_usable_percentage_edit, str(Sample_Edit_Level)],
                              'name': ['Sample Name:','Total Read Pairs:', 'Proper Read Pairs:','Total usable percentage:','Sample Edit Level:']})
 
     cols = new_head.columns.tolist()
@@ -175,16 +251,22 @@ for keys in data:
 
                 pos = str(sum([t[0] for t in slice_l]))
                 pos2 = str(sum([t[0] for t in slice_m])+1)
+                indelicous = [t[0] for t in slice_m]
                 variant = slice_l[-1][1]
+                var_len = slice_l[-1][0]
 
                 if variant == 'I' or 'D':
                     pos_list.append(pos2)
+                    varlen_list.append(var_len)
                 else:
                     pos_list.append(pos)
+                    varlen_list.append(var_len)
+
 
                 var_list.append(variant)
                 cig_pack.append(cig)
 
+                # print(cig,slice_m,variant,indelcious)
             else:
                 pass
 
@@ -194,14 +276,32 @@ for keys in data:
     cig_df['Position'] = pos_list
     cig_df['Variant'] = var_list
     cig_df['Sample_Name'] = str(keys)
+    cig_df['Var_len'] = varlen_list
 
-    Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant'], values= ['Percentage'],aggfunc={'Percentage':'first'})
+    cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ## REVIEW ####
+    cig_alt = cig_alt.sort_values(['Var_len'], ascending=[True])
 
+    # print(cig_df)
+#
+    # Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant'], values= ['Percentage'],aggfunc={'Percentage':'first'})
 
-    if Sample_Edit_Level == 0:
+    if Noise == 'Yes':    ## <------------------------------------------ #Necessary to remove edit genotypes with multiple deletions/insertions for composition fig.
+        Ptable_indel = cig_alt
+        Ptable_indel['Variant'] = Ptable_indel.Variant.replace('DD','D')
+        Ptable_indel['Variant'] = Ptable_indel.Variant.replace('II','I')
+        Ptable = Ptable_indel.pivot_table(index=['Sample_Name','CIGAR','Variant','Var_len'], values= ['Percentage'],aggfunc={'Percentage':'first'})
+    else:
+
+        Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant','Var_len'], values= ['Percentage'],aggfunc={'Percentage':'first'})
+
+    # if round(Sample_Edit_Level,0) == 0.0:
+    if Sample_Edit_Level == '0.0':
+
         d = {'Sample_Name': [keys], 'Variant': ['NoEdit'],'Percentage':[100]}
         No_Edit_DF = pd.DataFrame(data=d)
         pivot_dict[keys] = No_Edit_DF
+
+
     else:
 
         pivot_summary = pivot_summary.append(Ptable)
@@ -209,6 +309,12 @@ for keys in data:
         Ptable3 = Ptable2.groupby(['Percentage','Sample_Name','CIGAR'])['Variant'].apply(lambda x: "{%s}" % ', '.join(x)) #<----- combines variants classes into one string
         Ptable4 = pd.DataFrame(Ptable3)
         Ptable4 = pd.DataFrame(Ptable4.to_records())
+
+        if Noise == 'Yes':
+            Ptable4.Variant = Ptable4.Variant.replace('{D, X}','{D}')
+        else:
+            pass
+
         Ptable5 = Ptable4.pivot_table(index=['Sample_Name','Variant'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
         Ptable5 = pd.DataFrame(Ptable5.to_records())
         Ptable5['Variant'] = Ptable5['Variant'].str.replace('\W', '')
@@ -230,7 +336,7 @@ for keys in data:
         output.write(''.join([line for line in open(f).readlines() if line.strip()]))
 
 
-    cig_df.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
+    cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
 #
 # # #_____Summary Block_______________________________#
 summary.to_csv(Locus+r'_summary_knockout.csv', sep=',', header=False,index=False)

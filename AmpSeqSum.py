@@ -72,9 +72,10 @@ call(script,shell=True)
 
 ko_sum = pd.read_csv('ko_merge.csv', sep=",", dtype =object,header=None)
 
-hope = np.array_split(ko_sum, 20) #<---- 120 rows in merged file / 5 lines per samples => 24
+# print(len(sample_dict))
 
-print(hope)
+hope = np.array_split(ko_sum, (len(sample_dict)*4)) #<---- 120 rows in merged file / 5 lines per samples => 24
+
 for i in hope:
 
     i_tran= i.transpose()
@@ -101,5 +102,5 @@ KO_df['Sample Edit Level:'] = round(KO_df['Sample Edit Level:'].astype(float),2)
 
 # #_______________Output Block_____________________________________________# #
 KO_df.to_csv('VP-19-002.02.G1_summary_table.csv', sep=',', header=True,index=False)
-#
+# #
 print(KO_df)

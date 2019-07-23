@@ -5,6 +5,7 @@ library(ggbio)
 library(rtracklayer)
 library(GenomicRanges)
 library(magick)
+library(dplyr)
 
 samp_name <- list("VP-19-002.02.G1/TDN,R1C1 S1D5","VP-19-002.02.G1/TDN,R1C1 S1D7","VP-19-002.02.G1/TDN,R1C1 Post-H","VP-19-002.02.G1 D(-2)","VP-19-002.02.G1 D(0)")
 
@@ -80,7 +81,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames[c(5)]) #<----- 1st & 5th samples, retains B2Mk labels and Y axis
+for(sample in filenames) 
 {
   mydataB2M <- read.csv(sample, header=TRUE, sep=",")
   mydataB2M$Position= as.numeric(mydataB2M$Position)+44711473
@@ -95,51 +96,27 @@ for(sample in filenames[c(5)]) #<----- 1st & 5th samples, retains B2Mk labels an
   
   
   del <- subset(mydataB2M, Variant=='D')
-  # delAlt <- del
-  # delAlt$Hit = 0 - as.numeric(del$Hit)
   ins <- subset(mydataB2M, Variant=='I')
-  # 
-  # 
-  # new_data = rbind(delAlt,ins)
+
+  
+  ### Penta DF Block #####
+  
+  alt <-mydataB2M
+  alt <-select(alt,Variant,Hit,Var_len)
+  
+  deletion <- subset(alt, Variant=='D')
+  insertion <- subset(alt, Variant=='I')
   
   
-  ### ALTERNATIVE PENTA DF BLOCK #####
+  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
   
-alt <-mydataB2M
-alt <-select(alt,Variant,Hit,Var_len)
-
-deletion <- subset(alt, Variant=='D')
-insertion <- subset(alt, Variant=='I')
-
-
-agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
-agg_del$Hit = 0 - as.numeric(agg_del$Hit)
-
-agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
-agg_del$Variant <- "D"
-agg_ins$Variant <- "I"
-
-new_data = rbind(agg_del,agg_ins)
-
-
-
-# alt = group_by(alt,Var_len)
-# 
-# 
-#   
-#   
-#   # agg_del <- aggregate(Var_len ~ ID, data=x, FUN=sum)
-#   del <- subset(mydataB2M, Variant=='D')
-#   agg_del <- aggregate(Var_len ~ Variant ~ Hit, data=del, FUN=sum)
-#   agg_del_II <-aggregate(del$Var_len, by=list(Category=del$Hit), FUN=sum)
-#   delAlt <- del
-#   delAlt$Hit = 0 - as.numeric(del$Hit)
-#   ins <- subset(mydataB2M, Variant=='I')
-#   
-#   
-#   new_data = rbind(delAlt,ins)
+  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+  agg_del$Variant <- "D"
+  agg_ins$Variant <- "I"
   
-  
+  new_data = rbind(agg_del,agg_ins)
+
   ###_______________________________________________________#########
   
   mydataB2M <-mydataB2M[
@@ -178,10 +155,17 @@ new_data = rbind(agg_del,agg_ins)
   hope = paste(link, ".png", sep="")
   ggsave(hope)
   
+  # penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+  #   theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+  #   ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(breaks=seq(-100000,100000,1000),label=function(Hit){abs(Hit)})+ 
+  #   ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+  
   penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
     theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(breaks=seq(-100000,100000,1000),label=function(Hit){abs(Hit)})+ 
+    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
     ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+  
+  
   
   penta_hope = paste(link, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
@@ -285,14 +269,29 @@ for(sample in filenames)
     ins <- Dummy_df
   }
   
-  
   del <- subset(mydataCIITA, Variant=='D')
-  delAlt <- del
-  delAlt$Hit = 0 - as.numeric(del$Hit)
   ins <- subset(mydataCIITA, Variant=='I')
   
   
-  new_data = rbind(delAlt,ins)
+  ### Penta DF Block #####
+  
+  alt <-mydataCIITA
+  alt <-select(alt,Variant,Hit,Var_len)
+  
+  deletion <- subset(alt, Variant=='D')
+  insertion <- subset(alt, Variant=='I')
+  
+  
+  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  
+  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+  agg_del$Variant <- "D"
+  agg_ins$Variant <- "I"
+  
+  new_data = rbind(agg_del,agg_ins)
+  
+  ##_________________________________________________________##
   
   mydataCIITA <-mydataCIITA[
     with(mydataCIITA, order(-mydataCIITA$plot_pos,-mydataCIITA$Var_len)),
@@ -442,14 +441,28 @@ for(sample in filenames)
     ins <- Dummy_df
   }
   
-  
   del <- subset(mydataTRAC, Variant=='D')
-  delAlt <- del
-  delAlt$Hit = 0 - as.numeric(del$Hit)
   ins <- subset(mydataTRAC, Variant=='I')
   
+  ### Penta DF Block #####
   
-  new_data = rbind(delAlt,ins)
+  alt <-mydataTRAC
+  alt <-select(alt,Variant,Hit,Var_len)
+  
+  deletion <- subset(alt, Variant=='D')
+  insertion <- subset(alt, Variant=='I')
+  
+  
+  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  
+  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+  agg_del$Variant <- "D"
+  agg_ins$Variant <- "I"
+  
+  new_data = rbind(agg_del,agg_ins)
+  
+  ##_________________________________________________________##
   
   mydataTRAC <-mydataTRAC[
     with(mydataTRAC, order(-mydataTRAC$plot_pos,-mydataTRAC$Var_len)),
@@ -489,7 +502,7 @@ for(sample in filenames)
   
   penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
     theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(breaks=seq(-100000,100000,2000),label=function(Hit){abs(Hit)})+ 
+    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
     ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
   
   penta_hope = paste(link, "_penta.png", sep="")
@@ -582,14 +595,30 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
     ins <- Dummy_df
   }
   
-  
   del <- subset(mydataPIK, Variant=='D')
-  delAlt <- del
-  delAlt$Hit = 0 - as.numeric(del$Hit)
   ins <- subset(mydataPIK, Variant=='I')
   
+
   
-  new_data = rbind(delAlt,ins)
+  ### Penta DF Block #####
+  
+  alt <-mydataPIK
+  alt <-select(alt,Variant,Hit,Var_len)
+  
+  deletion <- subset(alt, Variant=='D')
+  insertion <- subset(alt, Variant=='I')
+  
+  
+  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  
+  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+  agg_del$Variant <- "D"
+  agg_ins$Variant <- "I"
+  
+  new_data = rbind(agg_del,agg_ins)
+  
+  ##_________________________________________________________##
   
   mydataPIK <-mydataPIK[
     with(mydataPIK, order(-mydataPIK$plot_pos,-mydataPIK$Var_len)),

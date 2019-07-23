@@ -185,7 +185,7 @@ for keys in data:
 
         #####____NEW LOGIC BLOCK____20190710____####
 
-    data[keys]['sus_artifact'] = 'real'
+    data[keys]['sus_artifact'] = 'real' ###<<<------------- MUST REVIEW AND WRITE IN NEW LOGIC!
 
     # data[keys].iloc[:,4] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
     #     (data[keys].iloc[:,5] == '*') ,'NoEdit',data[keys].iloc[:,4])
@@ -212,14 +212,12 @@ for keys in data:
     sample_edited.iloc[:,2] = (sample_edited.iloc[:,1].astype(int)/Proper_reads_edit)*100
     QC_level= sample_edited[~sample_edited['Type'].str.contains('NoEdit')]
 
-    # print('#------------------->', len(QC_level.index))
-
     if len(QC_level.index) == 0:
         Sample_Edit_Level = '0.0'
     else:
         Sample_Edit_Level = round(sum(QC_level.Percentage),4)
 
-    # sample_level.to_csv(keys+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
+        # sample_level.to_csv(keys+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
 
     hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit'])) #<-------- Creates dictionary of read number associated with CIGAR string
 
@@ -278,10 +276,17 @@ for keys in data:
     cig_df['Sample_Name'] = str(keys)
     cig_df['Var_len'] = varlen_list
 
+    print(cig_df.iloc[0:6,0:6])
+
     cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ## REVIEW ####
+
+    print(cig_alt.iloc[0:6,0:6])
+
     cig_alt = cig_alt.sort_values(['Var_len'], ascending=[True])
 
-    # print(cig_df)
+    print(len(changes))
+    print(cig_df.Percentage.sum(),cig_df.Hit.astype(float).sum())
+    print(cig_alt.Percentage.sum(),cig_alt.Hit.astype(float).sum())
 #
     # Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant'], values= ['Percentage'],aggfunc={'Percentage':'first'})
 
@@ -326,34 +331,34 @@ for keys in data:
         NoEdit_table = NoEdit_table[['Sample_Name','Variant','Percentage']]
 
 # # #   #___________Export Block_______________________________#
-    artifact_sum.to_csv(keys+r'_artifact_sum.csv', sep=',', header=True,index=False)
+#     artifact_sum.to_csv(keys+r'_artifact_sum.csv', sep=',', header=True,index=False)
+# #
+#     sample_edited.to_csv(keys+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
+#     rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
 #
-    sample_edited.to_csv(keys+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
-    rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
-
-    with open(keys+r'_QC.csv', 'w') as output:
-      for f in ['rehead.csv',keys+r'_QC_Edited_pre.csv']:
-        output.write(''.join([line for line in open(f).readlines() if line.strip()]))
-
-
-    cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
+#     with open(keys+r'_QC.csv', 'w') as output:
+#       for f in ['rehead.csv',keys+r'_QC_Edited_pre.csv']:
+#         output.write(''.join([line for line in open(f).readlines() if line.strip()]))
 #
-# # #_____Summary Block_______________________________#
-summary.to_csv(Locus+r'_summary_knockout.csv', sep=',', header=False,index=False)
-
-
-try: No_Edit_DF
-except NameError: No_Edit_DF = None
-
-
-if No_Edit_DF is None:
-    pivot_dict[keys] = pd.concat([Ptable5,NoEdit_table],axis=0)
-    CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-    CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
-    print("Edit Present")
-
-else:
-    pivot_dict[keys] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
-    CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-    CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
-    print("No Edit Present")
+#
+#     cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
+# #
+# # # #_____Summary Block_______________________________#
+# summary.to_csv(Locus+r'_summary_knockout.csv', sep=',', header=False,index=False)
+#
+#
+# try: No_Edit_DF
+# except NameError: No_Edit_DF = None
+#
+#
+# if No_Edit_DF is None:
+#     pivot_dict[keys] = pd.concat([Ptable5,NoEdit_table],axis=0)
+#     CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+#     CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
+#     print("Edit Present")
+#
+# else:
+#     pivot_dict[keys] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
+#     CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+#     CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
+#     print("No Edit Present")

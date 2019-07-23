@@ -80,7 +80,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames) #<----- 1st & 5th samples, retains B2Mk labels and Y axis
+for(sample in filenames[c(5)]) #<----- 1st & 5th samples, retains B2Mk labels and Y axis
 {
   mydataB2M <- read.csv(sample, header=TRUE, sep=",")
   mydataB2M$Position= as.numeric(mydataB2M$Position)+44711473
@@ -95,12 +95,52 @@ for(sample in filenames) #<----- 1st & 5th samples, retains B2Mk labels and Y ax
   
   
   del <- subset(mydataB2M, Variant=='D')
-  delAlt <- del
-  delAlt$Hit = 0 - as.numeric(del$Hit)
+  # delAlt <- del
+  # delAlt$Hit = 0 - as.numeric(del$Hit)
   ins <- subset(mydataB2M, Variant=='I')
+  # 
+  # 
+  # new_data = rbind(delAlt,ins)
   
   
-  new_data = rbind(delAlt,ins)
+  ### ALTERNATIVE PENTA DF BLOCK #####
+  
+alt <-mydataB2M
+alt <-select(alt,Variant,Hit,Var_len)
+
+deletion <- subset(alt, Variant=='D')
+insertion <- subset(alt, Variant=='I')
+
+
+agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+
+agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+agg_del$Variant <- "D"
+agg_ins$Variant <- "I"
+
+new_data = rbind(agg_del,agg_ins)
+
+
+
+# alt = group_by(alt,Var_len)
+# 
+# 
+#   
+#   
+#   # agg_del <- aggregate(Var_len ~ ID, data=x, FUN=sum)
+#   del <- subset(mydataB2M, Variant=='D')
+#   agg_del <- aggregate(Var_len ~ Variant ~ Hit, data=del, FUN=sum)
+#   agg_del_II <-aggregate(del$Var_len, by=list(Category=del$Hit), FUN=sum)
+#   delAlt <- del
+#   delAlt$Hit = 0 - as.numeric(del$Hit)
+#   ins <- subset(mydataB2M, Variant=='I')
+#   
+#   
+#   new_data = rbind(delAlt,ins)
+  
+  
+  ###_______________________________________________________#########
   
   mydataB2M <-mydataB2M[
     with(mydataB2M, order(-mydataB2M$plot_pos,-mydataB2M$Var_len)),
@@ -232,7 +272,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames) #<----- 1st & 5th samples, retains CIITAk labels and Y axis
+for(sample in filenames)
 {
   mydataCIITA <- read.csv(sample, header=TRUE, sep=",")
   mydataCIITA$Position= as.numeric(mydataCIITA$Position)+10916241 ###<------------------ CHECK
@@ -290,10 +330,13 @@ for(sample in filenames) #<----- 1st & 5th samples, retains CIITAk labels and Y 
   hope = paste(link, ".png", sep="")
   ggsave(hope)
   
-  penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+  quad <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
     theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(breaks=seq(-100000,100000,500),label=function(Hit){abs(Hit)})+ 
-    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+    ylab('Reads')+ xlab('Indel Length (bp)')
+  
+  penta <- quad + scale_y_continuous(limit = c(min(ggplot_build(quad)$data[[1]]$y),max(abs(ggplot_build(quad)$data[[1]]$y))),label=function(Hit){abs(Hit)})+ 
+    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15)) ##<-------------- alternate penta histogram to account for low edit frequencies, breaks as fxn of 
+  
   
   penta_hope = paste(link, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
@@ -576,7 +619,7 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
   
   PIK_loc <- autoplot(PIK.granges, geom = "chevron",offset=0.3,aes(fill="black",color="black"))+scale_fill_identity() +scale_color_identity()+theme_bw()+
     geom_rect(PIK.sgRNA,color="black",fill=NA)+
-    scale_x_continuous(expand = c(0, 0))+theme(text = element_text(size=12))
+    scale_x_continuous(expand = c(0, 0))+theme(text = element_text(size=8))
   
   
   sample <- tracks("Percentage"=PIK_cigar,"PIK"=PIK_loc,heights=c(0.1,0.01),label.text.cex=c(1,1),title = new_title,label.bg.fill=('white'))

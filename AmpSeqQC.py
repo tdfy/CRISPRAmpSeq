@@ -276,18 +276,12 @@ for keys in data:
     cig_df['Sample_Name'] = str(keys)
     cig_df['Var_len'] = varlen_list
 
-    print(cig_df.iloc[0:6,0:6])
-
-    cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ## REVIEW ####
-
-    print(cig_alt.iloc[0:6,0:6])
+    cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ##<--------- Add Noise "Yes" parameter?
+    cig_alt = cig_alt.drop_duplicates(keep='first')
 
     cig_alt = cig_alt.sort_values(['Var_len'], ascending=[True])
 
-    print(len(changes))
-    print(cig_df.Percentage.sum(),cig_df.Hit.astype(float).sum())
-    print(cig_alt.Percentage.sum(),cig_alt.Hit.astype(float).sum())
-#
+
     # Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant'], values= ['Percentage'],aggfunc={'Percentage':'first'})
 
     if Noise == 'Yes':    ## <------------------------------------------ #Necessary to remove edit genotypes with multiple deletions/insertions for composition fig.
@@ -331,34 +325,34 @@ for keys in data:
         NoEdit_table = NoEdit_table[['Sample_Name','Variant','Percentage']]
 
 # # #   #___________Export Block_______________________________#
-#     artifact_sum.to_csv(keys+r'_artifact_sum.csv', sep=',', header=True,index=False)
-# #
-#     sample_edited.to_csv(keys+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
-#     rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
+    artifact_sum.to_csv(keys+r'_artifact_sum.csv', sep=',', header=True,index=False)
 #
-#     with open(keys+r'_QC.csv', 'w') as output:
-#       for f in ['rehead.csv',keys+r'_QC_Edited_pre.csv']:
-#         output.write(''.join([line for line in open(f).readlines() if line.strip()]))
+    sample_edited.to_csv(keys+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
+    rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
+
+    with open(keys+r'_QC.csv', 'w') as output:
+      for f in ['rehead.csv',keys+r'_QC_Edited_pre.csv']:
+        output.write(''.join([line for line in open(f).readlines() if line.strip()]))
+
+
+    cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
 #
-#
-#     cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
-# #
-# # # #_____Summary Block_______________________________#
-# summary.to_csv(Locus+r'_summary_knockout.csv', sep=',', header=False,index=False)
-#
-#
-# try: No_Edit_DF
-# except NameError: No_Edit_DF = None
-#
-#
-# if No_Edit_DF is None:
-#     pivot_dict[keys] = pd.concat([Ptable5,NoEdit_table],axis=0)
-#     CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-#     CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
-#     print("Edit Present")
-#
-# else:
-#     pivot_dict[keys] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
-#     CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-#     CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
-#     print("No Edit Present")
+# # #_____Summary Block_______________________________#
+summary.to_csv(Locus+r'_summary_knockout.csv', sep=',', header=False,index=False)
+
+
+try: No_Edit_DF
+except NameError: No_Edit_DF = None
+
+
+if No_Edit_DF is None:
+    pivot_dict[keys] = pd.concat([Ptable5,NoEdit_table],axis=0)
+    CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+    CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
+    print("Edit Present")
+
+else:
+    pivot_dict[keys] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
+    CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+    CompSum.to_csv(Locus+r'_pivot_summary.csv', sep=',', header=True,index=False)
+    print("No Edit Present")

@@ -155,11 +155,6 @@ for(sample in filenames)
   hope = paste(link, ".png", sep="")
   ggsave(hope)
   
-  # penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
-  #   theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-  #   ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(breaks=seq(-100000,100000,1000),label=function(Hit){abs(Hit)})+ 
-  #   ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
-  
   penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
     theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
     ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 

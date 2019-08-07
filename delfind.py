@@ -29,6 +29,7 @@ var_list = []
 cig_pack = []
 ch_list = []
 
+
 cig_df = pd.DataFrame()
 
 
@@ -46,9 +47,9 @@ for read in bamFP:
                 slice_l = cig_string[:index + 1]
                 slice_m = cig_string[:index]
 
-                pos = str(sum([t[0] for t in slice_l]))
-                pos2 = str(sum([t[0] for t in slice_m])+1)
-                indelicous = [t[0] for t in slice_m]
+                # pos = str(sum([t[1] for t in slice_l]))
+                pos2 = str(sum([t[1] for t in slice_m]))
+                # indelicous = [t[0] for t in slice_m]
                 var_len = slice_l[-1][1]
                 variant = slice_l[-1][0]
 
@@ -78,6 +79,7 @@ cig_df['ch'] = ch_list
 
 cig_df['Variant'] = cig_df['Variant'].map({1:'I', 2:'D'})
 
+# print(cig_df)
 insertion = cig_df.loc[(cig_df['Variant'] == 'I')]
 Ptable_ins = insertion.pivot_table(index=['Variant','Var_len'], values= ['ch'],aggfunc={'count'})
 Ptable2_ins = pd.DataFrame(Ptable_ins)
@@ -93,17 +95,20 @@ Ptable3_del["('ch', 'count')"] = 0 - Ptable3_del["('ch', 'count')"]
 df_cat = pd.concat([Ptable3_ins,Ptable3_del],0)
 
 
-# print(df_cat)
-
+#_____Export Block________________#
 
 df_cat.to_csv(os.path.join(path+bam+r'.csv'), sep=',', header=True,index=True)
 
+# cig_df = cig_df.iloc[0:5,]
+cig_df['Hit'] = 1/len(CIGAR_list)*100
+cig_df = cig_df[['Position','Variant','Var_len','ch','Hit']]
 cig_df.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
-
-pink = cig_df.loc[(cig_df['Var_len'] == 1) & (cig_df['Variant'] == 'D')]
-
-pink.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
-
-
+#
+# # pink = cig_df.loc[(cig_df['Var_len'] == 1) & (cig_df['Variant'] == 'D')]
+#
+# # pink.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
+#
+print("sample", bam)
+print("Read Count",len(CIGAR_list))
 print("Script is Finished...")
 sys.exit()

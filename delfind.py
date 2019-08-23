@@ -49,13 +49,10 @@ for read in bamFP:
                 slice_l = cig_string[:index + 1]
                 slice_m = cig_string[:index]
 
-                # pos = str(sum([t[1] for t in slice_l]))
                 pos2 = str(sum([t[1] for t in slice_m]))
 
                 var_len = slice_l[-1][1]
                 variant = slice_l[-1][0]
-
-                # print(cig_string,"slice_m------>",slice_m,pos2)
 
                 if variant == 1 or 2:
                     pos_list.append(pos2)
@@ -80,9 +77,8 @@ cig_df['CIGAR'] = cig_pack
 
 cig_df['Var_len'] = varlen_list
 
-
 cig_df['Position'] = pos_list
-cig_df['Position_Start'] = cig_df['Position'].astype(int) + 164419787
+cig_df['Position_Start'] = cig_df['Position'].astype(int) + 164419787  #<------------------- make starting reference coordinate a variable
 cig_df['Position_Stop'] = cig_df['Position_Start'].astype(int) + cig_df['Var_len'].astype(int)
 
 cig_df['Variant'] = var_list
@@ -103,13 +99,13 @@ print(cig_df)
 
 
 insertion = cig_df.loc[(cig_df['Variant'] == 'I')]
-Ptable_ins = insertion.pivot_table(index=['Variant','Var_len','ID','Position_Start','Position_Stop'], values= ['ch'],aggfunc={'count'})
+Ptable_ins = insertion.pivot_table(index=['Variant','Var_len','ID','Position','Position_Start','Position_Stop','Target','On_Target','Off_Target'], values= ['ch'],aggfunc={'count'})
 Ptable2_ins = pd.DataFrame(Ptable_ins)
 Ptable3_ins = pd.DataFrame(Ptable2_ins.to_records())
 
 
 deletion = cig_df.loc[(cig_df['Variant'] == 'D')]
-Ptable_del = deletion.pivot_table(index=['Variant','Var_len','ID','Position_Start','Position_Stop'], values= ['ch'],aggfunc={'count'})
+Ptable_del = deletion.pivot_table(index=['Variant','Var_len','ID','Position','Position_Start','Position_Stop','Target','On_Target','Off_Target'], values= ['ch'],aggfunc={'count'})
 Ptable2_del = pd.DataFrame(Ptable_del)
 Ptable3_del = pd.DataFrame(Ptable2_del.to_records())
 Ptable3_del["('ch', 'count')"] = 0 - Ptable3_del["('ch', 'count')"]
@@ -123,12 +119,8 @@ df_cat.to_csv(os.path.join(path+bam+r'.csv'), sep=',', header=True,index=True)
 
 # cig_df = cig_df.iloc[0:5,]
 cig_df['Hit'] = 1/len(CIGAR_list)*100
-cig_df = cig_df[['Position_Start','Position_Stop','Variant','Var_len','ch','Hit','ID']]
+cig_df = cig_df[['Position','Position_Start','Position_Stop','Variant','Var_len','ch','Hit','ID']]
 cig_df.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
-#
-# # pink = cig_df.loc[(cig_df['Var_len'] == 1) & (cig_df['Variant'] == 'D')]
-#
-# # pink.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
 #
 print("sample", bam)
 print("Read Count",len(CIGAR_list))

@@ -34,19 +34,6 @@ import collections
 import argparse
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
-# # :--------------------------------------------------------------------------------------------------------------
-# Locus = sys.argv[1]
-# # path = sys.argv[3]
-# # always assume filepaths are relative to current directory
-# # os.chdir(path)
-# Run_ID = sys.argv[2]
-# Noise = sys.argv[4]
-# # filelist = glob.glob(Run_ID+r'_'+Locus+r'_*.output.csv')
-# control_list = [Run_ID+r'_'+Locus+r'_4']
-# Treatment_list = [Run_ID+r'_'+Locus+r'_5',Run_ID+r'_'+Locus+r'_1',Run_ID+r'_'+Locus+r'_2',Run_ID+r'_'+ Locus+r'_3']
-# extension = '.output.csv'
-# list_1 = Treatment_list + control_list
-# filelist = [x + extension for x in list_1]
 #
 #
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------

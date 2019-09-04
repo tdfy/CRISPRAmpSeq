@@ -45,7 +45,7 @@ import argparse
 data = {}
 header_dict = {}
 pivot_dict = {}
-summary = pd.DataFrame()
+# summary = pd.DataFrame()
 pivot_summary = pd.DataFrame()
 String_list = ['I','D','X']
 TRAC3_SNPlist = ['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46=']
@@ -59,7 +59,12 @@ ctrl_df_dict = {}
 KO_cat = []
 indel_dict = {}
 
+# rehead_list_1 = []
+# rehead_list_2 = []
 
+rehead_dict = {}
+repivot_dict = {}
+reduce_dict = {}
 
 path = sys.argv[1]
 os.chdir(path)
@@ -118,19 +123,19 @@ for Tag, comp in configed.groupby('Target'): ###<-------------------- prototype
 
     #     ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ Removes known germplasm variants {convert to dictionary}
     #
-for keys in control_dict:
+for file in control_dict:
     CIGAR_cat = []
-    ctrl = control_dict[keys]
+    ctrl = control_dict[file]
 
     if  len(ctrl) > 1:
         for x in ctrl:
             control_samp = data[x].iloc[:,5]
             CIGAR_frame = control_samp.to_frame()     ### converts series to df in order to concat into one DF
             CIGAR_cat.append( CIGAR_frame )     ### appends sub-dfs
-            ctrl_df_dict[keys] = pd.concat(CIGAR_cat,axis=1,)     ### concats to one DF
+            ctrl_df_dict[file] = pd.concat(CIGAR_cat,axis=1,)     ### concats to one DF
     else:
         x = ctrl[0]
-        ctrl_df_dict[keys] = data[x].iloc[:,5].to_frame()
+        ctrl_df_dict[file] = data[x].iloc[:,5].to_frame()
 
     ###--------------------------------------------------------------------------------------------------------------------------###
 
@@ -183,11 +188,11 @@ for samp in structure:
 
             new_list = [int(x)-1 for x in artifact_pos]
 
-            for keys in filelist:
-                data[keys]['sus_artifact'] = 'real'
-                for row in keys:
+            for file in filelist:
+                data[file]['sus_artifact'] = 'real'
+                for row in file:
                     for position in new_list:
-                        data[keys]['Type'] = np.where((data[keys]['Type']=='S') & (position in data[keys]['CIGAR']),'NoEdit',data[keys]['Type'])
+                        data[file]['Type'] = np.where((data[file]['Type']=='S') & (position in data[file]['CIGAR']),'NoEdit',data[file]['Type'])
 
 
     else:
@@ -202,51 +207,54 @@ for samp in structure:
 
     #####__________________________QC Analysis_____________________________________#
 
-    for keys in filelist:
+    for file in filelist:
+
+        loci = filelist.iloc[0].split('_')[1]
+
         cig_df = pd.DataFrame()
         pos_list = []
         var_list = []
         cig_pack = []
         varlen_list = []
 
-        with open(dir + keys + '.output.csv' ) as myfile:
-            header_dict[keys] = [next(myfile) for x in range(4)]
+        with open(dir + file + '.output.csv' ) as myfile:
+            header_dict[file] = [next(myfile) for x in range(4)]
 
-        QC = pd.read_csv(dir + keys + '.output.csv' , sep=",", dtype =object,skiprows=4)
+        QC = pd.read_csv(dir + file + '.output.csv' , sep=",", dtype =object,skiprows=4)
 
         if len(u) == 1:
-                data[keys]['sus_artifact'] = 'real' ###<<<------------- MUST REVIEW AND WRITE IN NEW LOGIC!
+                data[file]['sus_artifact'] = 'real' ###<<<------------- MUST REVIEW AND WRITE IN NEW LOGIC!
         else:
 
-            data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
-                (data[keys].iloc[:,5] == '*') ,'artifact','real')
+            data[file]['sus_artifact'] = np.where((data[file].iloc[:,5].isin(u)) & (data[file].iloc[:,4] != 'NoEdit')  |
+                (data[file].iloc[:,5] == '*') ,'artifact','real')
 
 
-            data[keys]['sus_artifact'] = np.where((data[keys].iloc[:,5].str.contains('D|I')==False) & (data[keys].iloc[:,2].astype(float) > 4) &
-                (data[keys].iloc[:,4] != 'NoEdit'),'artifact',data[keys]['sus_artifact']) #<----------------- Removes substitution artifacts that do not contain Indel and are observed at a >4% freq
+            data[file]['sus_artifact'] = np.where((data[file].iloc[:,5].str.contains('D|I')==False) & (data[file].iloc[:,2].astype(float) > 4) &
+                (data[file].iloc[:,4] != 'NoEdit'),'artifact',data[file]['sus_artifact']) #<----------------- Removes substitution artifacts that do not contain Indel and are observed at a >4% freq
 
                 ####____NEW LOGIC BLOCK____20190710____####
 
 
-            data[keys].iloc[:,4] = np.where((data[keys].iloc[:,5].isin(u)) & (data[keys].iloc[:,4] != 'NoEdit')  |
-                (data[keys].iloc[:,5] == '*') ,'NoEdit',data[keys].iloc[:,4])
+            data[file].iloc[:,4] = np.where((data[file].iloc[:,5].isin(u)) & (data[file].iloc[:,4] != 'NoEdit')  |
+                (data[file].iloc[:,5] == '*') ,'NoEdit',data[file].iloc[:,4])
 
 
-            data[keys].iloc[:,4] = np.where((data[keys].iloc[:,5].str.contains('D|I')==False),'NoEdit', data[keys].iloc[:,4]) #<----------------- Redefines reads that are substitutions at a freq<4 as 'NoEdit'---rather than discard artifacts that do not contain Indel and are observed at a >4% freq
+            data[file].iloc[:,4] = np.where((data[file].iloc[:,5].str.contains('D|I')==False),'NoEdit', data[file].iloc[:,4]) #<----------------- Redefines reads that are substitutions at a freq<4 as 'NoEdit'---rather than discard artifacts that do not contain Indel and are observed at a >4% freq
 
             #####_____________________________________________________________________________######
 
 
-        sample_edited = data[keys][data[keys]['sus_artifact'].str.contains('real')].copy()
+        sample_edited = data[file][data[file]['sus_artifact'].str.contains('real')].copy()
 
-        artifact_sum = data[keys][data[keys]['sus_artifact'].str.contains('artifact')].copy() #<----------------- Artifact summary
+        artifact_sum = data[file][data[file]['sus_artifact'].str.contains('artifact')].copy() #<----------------- Artifact summary
 
-        # data[keys].to_csv(keys+r'_logic.csv', sep=',', header=True,index=False) #<-------- Check suspected artifact logic
+        # data[file].to_csv(file+r'_logic.csv', sep=',', header=True,index=False) #<-------- Check suspected artifact logic
 
        # # __Calculated Variables for New Header____#
-        Proper_reads = int(header_dict[keys][1].split(',')[1])
+        Proper_reads = int(header_dict[file][1].split(',')[1])
         Proper_reads_edit = sum((sample_edited.Hit.astype(int)))
-        Total_Read_Pair = int(header_dict[keys][0].split(',')[1])
+        Total_Read_Pair = int(header_dict[file][0].split(',')[1])
         Total_usable_percentage_edit = (float(Proper_reads_edit)/float(Total_Read_Pair))*100
         sample_edited.iloc[:,2] = (sample_edited.iloc[:,1].astype(int)/Proper_reads_edit)*100
         QC_level= sample_edited[~sample_edited['Type'].str.contains('NoEdit')]
@@ -256,21 +264,22 @@ for samp in structure:
         else:
             Sample_Edit_Level = round(sum(QC_level.Percentage),4)
 
-            # sample_level.to_csv(keys+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
+            # sample_level.to_csv(file+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
 
         hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit'])) #<-------- Creates dictionary of read number associated with CIGAR string
 
         # #___Create & Append New Header____#
 
-        new_head = pd.DataFrame({'mask': [keys,Total_Read_Pair, Proper_reads_edit,Total_usable_percentage_edit, str(Sample_Edit_Level)],
+        new_head = pd.DataFrame({'mask': [file,Total_Read_Pair, Proper_reads_edit,Total_usable_percentage_edit, str(Sample_Edit_Level)],
                                  'name': ['Sample Name:','Total Read Pairs:', 'Proper Read Pairs:','Total usable percentage:','Sample Edit Level:']})
 
         cols = new_head.columns.tolist()
         cols = cols[-1:] + cols[:-1] # <--- Reverses the order of columns in DF
         rehead = new_head[cols]
 
-        summary = summary.append(rehead)
-        print(rehead)
+
+        rehead_dict[file] = rehead
+
 
             # #______CIGAR String Block______________________# #
         changes = QC_level['CIGAR'].tolist()
@@ -312,8 +321,9 @@ for samp in structure:
         cig_df['Percentage'] = ((cig_df['Hit'].astype(int)/Proper_reads_edit)*100)
         cig_df['Position'] = pos_list
         cig_df['Variant'] = var_list
-        cig_df['Sample_Name'] = str(keys)
+        cig_df['Sample_Name'] = str(file)
         cig_df['Var_len'] = varlen_list
+
 
         if (len(u) == 1) & (comp['Noise'].iloc[0] == 'Yes'):
             cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ##<--------- Add Noise "Yes" parameter?
@@ -325,7 +335,6 @@ for samp in structure:
             cig_alt = cig_df
 
 
-        # Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant'], values= ['Percentage'],aggfunc={'Percentage':'first'})
 
         if comp['Noise'].iloc[0] == 'Yes':    ## <------------------------------------------ #Necessary to remove edit genotypes with multiple deletions/insertions for composition fig.
             Ptable_indel = cig_alt
@@ -336,117 +345,135 @@ for samp in structure:
 
             Ptable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant','Var_len'], values= ['Percentage'],aggfunc={'Percentage':'first'})
 
+
+
+###<<<<<<<<<<<<<<<<<<_______________Consider New Loop________________________________>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>### ^^^^ Apply Ptable dict implementations below ^^^^
+
+
+
+
+
         if Sample_Edit_Level == '0.0':
 
-            d = {'Sample_Name': [keys], 'Variant': ['NoEdit'],'Percentage':[100]}
+            d = {'Sample_Name': [file], 'Variant': ['NoEdit'],'Percentage':[100]}
             No_Edit_DF = pd.DataFrame(data=d)
-            pivot_dict[keys] = No_Edit_DF
+            pivot_dict[file] = No_Edit_DF
 
 
         else:
 
-            pivot_summary = pivot_summary.append(Ptable)
-            Ptable2 = pd.DataFrame(pivot_summary.to_records())
-            Ptable3 = Ptable2.groupby(['Percentage','Sample_Name','CIGAR'])['Variant'].apply(lambda x: "{%s}" % ', '.join(x)) #<----- combines variants classes into one string
-            Ptable4 = pd.DataFrame(Ptable3)
-            Ptable4 = pd.DataFrame(Ptable4.to_records())
+            # pivot_summary = pivot_summary.append(Ptable) ####<<<<<<<<<<<<<<<<<<< --------------------------- HEERE
+            # print(pd.DataFrame(Ptable.to_records()))
+            Ptable = pd.DataFrame(Ptable.to_records())
+            Ptable['Target'] = Ptable['Sample_Name'].str.split('_').str.get(1)
+            repivot_dict[file] = pd.DataFrame(Ptable.to_records())
+#             print(repivot_dict.keys())
+#             Ptable2 = pd.DataFrame(pivot_summary.to_records())
+            Ptable2 = pd.concat(repivot_dict.values(),ignore_index=True)
+            reduce_dict[loci]= Ptable2.loc[(Ptable2['Target'] == loci)]
 
-            if comp['Noise'].iloc[0] == 'Yes':
-                Ptable4.Variant = Ptable4.Variant.replace('{D, X}','{D}')
-            else:
-                pass
+print(reduce_dict['PIK'])
 
-            Ptable5 = Ptable4.pivot_table(index=['Sample_Name','Variant'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
-            Ptable5 = pd.DataFrame(Ptable5.to_records())
-            Ptable5['Variant'] = Ptable5['Variant'].str.replace('\W', '')
+            # print(filelist.iloc[0].split('_')[1])
+#             Ptable3 = Ptable2.groupby(['Percentage','Sample_Name','CIGAR'])['Variant'].apply(lambda x: "{%s}" % ', '.join(x)) #<----- combines variants classes into one string
+#             Ptable4 = pd.DataFrame(Ptable3)
+#             Ptable4 = pd.DataFrame(Ptable4.to_records())
+# #
 
-            NoEdit_table = Ptable5.pivot_table(index=['Sample_Name'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
-            NoEdit_table = pd.DataFrame(NoEdit_table.to_records())
-            NoEdit_table['Percentage'] = 100 - NoEdit_table['Percentage'].astype(float)
-            NoEdit_table['Variant'] = 'NoEdit'
-            NoEdit_table = NoEdit_table[['Sample_Name','Variant','Percentage']]
-
-    # #   #___________Export Block_______________________________#
-        artifact_sum.to_csv(keys+r'_artifact_sum.csv', sep=',', header=True,index=False)
-    #
-        sample_edited.to_csv(keys+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
-        rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
-
-        with open(keys+r'_QC.csv', 'w') as output:
-          for f in ['rehead.csv',keys+r'_QC_Edited_pre.csv']:
-            output.write(''.join([line for line in open(f).readlines() if line.strip()]))
-
-
-        cig_alt.to_csv(keys+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
-    #
-    # # #_____Summary Block_______________________________#
-    summary.to_csv(comp['Target'].iloc[0]+r'_summary_knockout.csv', sep=',', header=False,index=False)
-
-
-    try: No_Edit_DF
-    except NameError: No_Edit_DF = None
-
-
-    if No_Edit_DF is None:
-        pivot_dict[keys] = pd.concat([Ptable5,NoEdit_table],axis=0)
-        CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-        CompSum.to_csv(comp['Target'].iloc[0]+r'_pivot_summary.csv', sep=',', header=True,index=False)
-        print("Edit Present")
-
-    else:
-        pivot_dict[keys] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
-        CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
-        CompSum.to_csv(comp['Target'].iloc[0]+r'_pivot_summary.csv', sep=',', header=True,index=False)
-        print("No Edit Present")
-
-    # ###_____________SUMMARY METRICS__________________________________________###
-    # # #__________________Pivot Summary Formating____________________________#
-script="cat *pivot_summary.csv>merge.csv"
-call(script,shell=True)
-
-pivot_sum = pd.read_csv('merge.csv', sep=",", dtype =object)
-pivot_sum = pivot_sum[~pivot_sum['Sample_Name'].str.contains('Sample_Name')]
-Sample_list = pivot_sum['Sample_Name'].unique()
-
-pivot_sum2 = pivot_sum[pivot_sum['Variant'].str.contains('D|I')].copy()
-pivot_sum2['Percentage'] = pivot_sum2['Percentage'].astype(float)
-pivot_sum2= pivot_sum2.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
-pivot_sum3 = pd.DataFrame(pivot_sum2.to_records())
-
-pivot_sum_noedit = pivot_sum[pivot_sum['Variant'].str.contains('NoEdit')] #<------- Assumes that no sample is 100% editted***
-pivot_sum_noedit= pivot_sum_noedit.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
-pivot_sum_noedit2 = pd.DataFrame(pivot_sum_noedit.to_records())
-pivot_sum_noedit2['Percentage'] = 0
-
-combo_pi = pd.concat([pivot_sum3,pivot_sum_noedit2],axis=0)
-combo_pi_pivot= combo_pi.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
-combo_pi_pivot = pd.DataFrame(combo_pi_pivot.to_records())
-combo_pi_pivot['Percentage'] = round(combo_pi_pivot['Percentage'],2)
-
-
-combo_pi_pivot['Samp_No'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(2)
-combo_pi_pivot['Locus'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(1)
-
-indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage']))
-
-
-# #__________________KO Summary Formating____________________________#
-
-script="cat *_summary_knockout.csv>ko_merge.csv"
-call(script,shell=True)
-
-ko_sum = pd.read_csv('ko_merge.csv', sep=",", dtype =object,header=None)
-
-# sample_dict = dict(zip(comp['Sample'], comp['Experiment_Name'] + comp['Time_Point']))
-
-hope = np.array_split(ko_sum, (len(configed['File_Name'].unique())*4)) #<---- 120 rows in merged file / 5 lines per samples => 24
-
-
-for i in hope:
-    i_tran= i.transpose()
-    i_tran.columns = ['Sample Name:','Total Read Pairs:','Proper Read Pairs:','Total usable percentage:','Sample Edit Level:']
-    KO_cat.append(i_tran) ### appends sub-dfs
+#             if comp['Noise'].iloc[0] == 'Yes':
+#                 Ptable4.Variant = Ptable4.Variant.replace('{D, X}','{D}')
+#             else:
+#                 pass
 #
+#             Ptable5 = Ptable4.pivot_table(index=['Sample_Name','Variant'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
+#             Ptable5 = pd.DataFrame(Ptable5.to_records())
+#             Ptable5['Variant'] = Ptable5['Variant'].str.replace('\W', '')
+#
+#             NoEdit_table = Ptable5.pivot_table(index=['Sample_Name'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
+#             NoEdit_table = pd.DataFrame(NoEdit_table.to_records())
+#             NoEdit_table['Percentage'] = 100 - NoEdit_table['Percentage'].astype(float)
+#             NoEdit_table['Variant'] = 'NoEdit'
+#             NoEdit_table = NoEdit_table[['Sample_Name','Variant','Percentage']]
+#
+#     # #   #___________Export Block_______________________________#
+#         artifact_sum.to_csv(file+r'_artifact_sum.csv', sep=',', header=True,index=False)
+#     #
+#         sample_edited.to_csv(file+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
+#         rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
+#
+#         with open(file+r'_QC.csv', 'w') as output:
+#           for f in ['rehead.csv',file+r'_QC_Edited_pre.csv']:
+#             output.write(''.join([line for line in open(f).readlines() if line.strip()]))
+#
+#
+#         cig_alt.to_csv(file+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
+#     #
+#     # # #_____Summary Block_______________________________#
+#     # summary.to_csv(comp['Target'].iloc[0]+r'_summary_knockout.csv', sep=',', header=False,index=False)
+#
+#
+#     try: No_Edit_DF
+#     except NameError: No_Edit_DF = None
+#
+#
+#     if No_Edit_DF is None:
+#         pivot_dict[file] = pd.concat([Ptable5,NoEdit_table],axis=0)
+#         CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+#         CompSum.to_csv(comp['Target'].iloc[0]+r'_pivot_summary.csv', sep=',', header=True,index=False)
+#         print("Edit Present")
+#
+#     else:
+#         pivot_dict[file] = pd.concat([No_Edit_DF,Ptable5,NoEdit_table],axis=0)
+#         CompSum = pd.concat(pivot_dict.values(), ignore_index=True)
+#         CompSum.to_csv(comp['Target'].iloc[0]+r'_pivot_summary.csv', sep=',', header=True,index=False)
+#         print("No Edit Present")
+#
+#
+# summary = pd.concat(rehead_dict.values(),ignore_index=True)
+#
+#
+#     # ###_____________SUMMARY METRICS__________________________________________###
+#     # # #__________________Pivot Summary Formating____________________________#
+# # script="cat *pivot_summary.csv>merge.csv"
+# # call(script,shell=True)
+#
+# pivot_sum = pd.read_csv('merge.csv', sep=",", dtype =object)
+# pivot_sum = pivot_sum[~pivot_sum['Sample_Name'].str.contains('Sample_Name')]
+# Sample_list = pivot_sum['Sample_Name'].unique()
+#
+# pivot_sum2 = pivot_sum[pivot_sum['Variant'].str.contains('D|I')].copy()
+# pivot_sum2['Percentage'] = pivot_sum2['Percentage'].astype(float)
+# pivot_sum2= pivot_sum2.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
+# pivot_sum3 = pd.DataFrame(pivot_sum2.to_records())
+#
+# pivot_sum_noedit = pivot_sum[pivot_sum['Variant'].str.contains('NoEdit')] #<------- Assumes that no sample is 100% editted***
+# pivot_sum_noedit= pivot_sum_noedit.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
+# pivot_sum_noedit2 = pd.DataFrame(pivot_sum_noedit.to_records())
+# pivot_sum_noedit2['Percentage'] = 0
+#
+# combo_pi = pd.concat([pivot_sum3,pivot_sum_noedit2],axis=0)
+# combo_pi_pivot= combo_pi.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
+# combo_pi_pivot = pd.DataFrame(combo_pi_pivot.to_records())
+# combo_pi_pivot['Percentage'] = round(combo_pi_pivot['Percentage'],2)
+#
+#
+# combo_pi_pivot['Samp_No'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(2)
+# combo_pi_pivot['Locus'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(1)
+#
+# indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage']))
+#
+#
+# # #__________________KO Summary Formating____________________________#
+#
+# hope = np.array_split(summary, (len(sample_dict)*4)) #<---- 120 rows in merged file / 5 lines per samples => 24
+#
+#
+#
+# for i in hope:
+#     i_tran= i.transpose()
+#     i_tran.columns = ['Sample Name:','Total Read Pairs:','Proper Read Pairs:','Total usable percentage:','Sample Edit Level:']
+#     KO_cat.append(i_tran) ### appends sub-dfs
+# #
 #
 # KO_df = pd.concat(KO_cat,axis=0)     ### concats to one DF
 # KO_df= KO_df[KO_df['Sample Name:'].str.contains('19')]#<-------- Assumes all Specimen Names contain 19 from '2019'

@@ -31,10 +31,6 @@ import glob
 import os
 from cigar import Cigar
 import collections
-# import subprocess
-# from subprocess import call
-
-import re
 
 import argparse  ###<<---- implement
 

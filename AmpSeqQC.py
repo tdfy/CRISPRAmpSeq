@@ -34,7 +34,6 @@ import collections
 import argparse
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
-# # :--------------------------------------------------------------------------------------------------------------
 # Locus = sys.argv[1]
 # # path = sys.argv[3]
 # # always assume filepaths are relative to current directory

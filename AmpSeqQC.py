@@ -17,10 +17,6 @@
 # 9. Parse CIGAR strings containing variants into individual variants with coorelating physical position {Figure Generation}
 # 10. Generate 'Edit Type' genotype composition per sample {Figure Generation}
 
-# Note from Kyle:
-# Consider as an exercise: write down the major steps in the process, like 5-10 lines
-# Then imagine writing a function, one for each step, that does the work and returns a result
-# can you scoop up part of your code into one of these functions? If so, this is progress.
 
 # #Modules/Libraries:--------------------------------------------------------------------------------------------------------------
 
@@ -38,8 +34,6 @@ import argparse  ###<<---- implement
 #
 #
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------
-#
-# CIGAR_cat = []
 data = {}
 header_dict = {}
 pivot_dict = {}
@@ -50,6 +44,7 @@ CIITA_SNPlist = ['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S']
 PIK_SNPlist = ['39=1D182=']
 B2M_SNPlist = []
 New_File_Name = []
+New_File_Dir = []
 structure = {}
 control_dict = {}
 ctrl_df_dict = {}
@@ -58,8 +53,6 @@ indel_dict = {}
 
 
 rehead_dict = {}
-repivot_dict = {}   ##<<<<------ review necessity
-reduce_dict = {}
 
 cig_df_dict = {}
 compress_dict = {}
@@ -81,6 +74,21 @@ for line in configed['File_Name']:
 
 configed['File_Name'] = New_File_Name
 
+
+####===============================================###
+
+for line in configed['Directory']:
+    if line.endswith("/") == False:
+        line = str(line) + '/'
+        New_File_Dir.append(line)
+    else:
+        New_File_Dir.append(line)
+        pass
+
+configed['Directory'] = New_File_Dir
+
+####===============================================###
+
 Targs = configed['Target'].unique()
 
 configed['Full_Name'] = configed['Experiment_Name'] +'_'+ configed['Time_Point']
@@ -88,7 +96,7 @@ configed['Full_Name'] = configed['Experiment_Name'] +'_'+ configed['Time_Point']
 sample_dict = dict(zip(configed['Sample'], configed['Full_Name']))
 
 
-for Tag, comp in configed.groupby('Target'): ###<-------------------- prototype
+for Tag, comp in configed.groupby('Target'):
     structure[Tag] = comp.sort_values(['Design'], ascending=[False])
 
     control_df = comp.loc[(comp['Design'] == 'C')]
@@ -180,7 +188,7 @@ for samp in structure:
                     else:
                         pass
 
-            artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 50] #<--------- Threshold for substitution pileup (285) ORG--500
+            artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 50] #<--------- Threshold for substitution pileup
 
             print(artifact_pos)
 
@@ -219,7 +227,7 @@ for samp in structure:
         QC = pd.read_csv(dir + file + '.output.csv' , sep=",", dtype =object,skiprows=4)
 
         if len(u) == 1:
-                data[file]['sus_artifact'] = 'real' ###<<<------------- MUST REVIEW AND WRITE IN NEW LOGIC!
+                data[file]['sus_artifact'] = 'real'
         else:
 
             data[file]['sus_artifact'] = np.where((data[file].iloc[:,5].isin(u)) & (data[file].iloc[:,4] != 'NoEdit')  |
@@ -276,6 +284,7 @@ for samp in structure:
 
         rehead_dict[file] = rehead
 
+        print(rehead)
 
             # #______CIGAR String Block______________________# #
         changes = QC_level['CIGAR'].tolist()
@@ -292,7 +301,6 @@ for samp in structure:
 
                     pos = str(sum([t[0] for t in slice_l]))
                     pos2 = str(sum([t[0] for t in slice_m])+1)
-                    indelicous = [t[0] for t in slice_m]
                     variant = slice_l[-1][1]
                     var_len = slice_l[-1][0]
 
@@ -431,7 +439,7 @@ indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage'
     # #_____Summary Block_______________________________#
 
 summary = pd.concat(rehead_dict.values(),ignore_index=True)
-summary.to_csv('Test'+r'_summary_knockout.csv', sep=',', header=False,index=False)
+summary.to_csv(comp['Experiment_Name'].iloc[0]+r'_summary_knockout.csv', sep=',', header=False,index=False)
 
 # #__________________KO Summary Formating____________________________#
 
@@ -443,7 +451,7 @@ for i in hope:
     KO_cat.append(i_tran) ### appends sub-dfs
 
 KO_df = pd.concat(KO_cat,axis=0)     ### concats to one DF
-KO_df= KO_df[KO_df['Sample Name:'].str.contains('19')]#<-------- Assumes all Specimen Names contain 19 from '2019'
+KO_df= KO_df[KO_df['Sample Name:'].str.contains('_')]#<-------- Assumes all Specimen Names contain '_'
 
 KO_df['Samp_No'] = KO_df['Sample Name:'].str.split('_').str.get(2)
 KO_df['Locus'] = KO_df['Sample Name:'].str.split('_').str.get(1)

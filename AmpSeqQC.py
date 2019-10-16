@@ -70,7 +70,6 @@ for line in configed['File_Name']:
         New_File_Name.append(line)
     else:
         New_File_Name.append(line)
-        pass
 
 configed['File_Name'] = New_File_Name
 
@@ -83,7 +82,6 @@ for line in configed['Directory']:
         New_File_Dir.append(line)
     else:
         New_File_Dir.append(line)
-        pass
 
 configed['Directory'] = New_File_Dir
 
@@ -190,7 +188,7 @@ for samp in structure:
 
             artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 50] #<--------- Threshold for substitution pileup
 
-            print(artifact_pos)
+            print(samp,artifact_pos)
 
             new_list = [int(x)-1 for x in artifact_pos]
 
@@ -237,14 +235,9 @@ for samp in structure:
             data[file]['sus_artifact'] = np.where((data[file].iloc[:,5].str.contains('D|I')==False) & (data[file].iloc[:,2].astype(float) > 4) &
                 (data[file].iloc[:,4] != 'NoEdit'),'artifact',data[file]['sus_artifact']) #<----------------- Removes substitution artifacts that do not contain Indel and are observed at a >4% freq
 
-                ####____NEW LOGIC BLOCK____20190710____####
-
 
             data[file].iloc[:,4] = np.where((data[file].iloc[:,5].isin(u)) & (data[file].iloc[:,4] != 'NoEdit')  |
                 (data[file].iloc[:,5] == '*') ,'NoEdit',data[file].iloc[:,4])
-
-
-            data[file].iloc[:,4] = np.where((data[file].iloc[:,5].str.contains('D|I')==False),'NoEdit', data[file].iloc[:,4]) #<----------------- Redefines reads that are substitutions at a freq<4 as 'NoEdit'---rather than discard artifacts that do not contain Indel and are observed at a >4% freq
 
             #####_____________________________________________________________________________######
 
@@ -284,7 +277,7 @@ for samp in structure:
 
         rehead_dict[file] = rehead
 
-        print(rehead)
+        # print(rehead)
 
             # #______CIGAR String Block______________________# #
         changes = QC_level['CIGAR'].tolist()

@@ -23,16 +23,13 @@
 import sys
 import numpy as np
 import pandas as pd
-import glob
-import os
 from cigar import Cigar
 import collections
-
-import argparse  ###<<---- implement
+import argparse
+from tabulate import tabulate
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
-#
-#
+
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------
 data = {}
 header_dict = {}
@@ -51,18 +48,35 @@ ctrl_df_dict = {}
 KO_cat = []
 indel_dict = {}
 
-
 rehead_dict = {}
 
 cig_df_dict = {}
 compress_dict = {}
 CIGAR_sum_dict = {}
 
-path = sys.argv[1]
-os.chdir(path)
-config = 'config.csv'
-configed = pd.read_csv(path +'/'+ config, sep=",", dtype =object)
+###-----------------------------------------------------------------------------------------------------------------------------###
+parser = argparse.ArgumentParser(description=
 
+print("""
+Application to call CRISPR edits from amplicon sequencing libraries
+
+Configuration Table Example:
+
+""",
+
+tabulate([['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_1.output.csv','B2M','1','T','PACE_20_B','1','1','Y'], ['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_2.output.csv','B2M','2','C','PACE_20_B','2','2','Y']],
+headers=['Directoy', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name','Time_Point','Chron_Order','Noise']),'\n'))
+###-----------------------------------------------------------------------------------------------------------------------------###
+
+parser.add_argument('-p','--path', help='path to conifiguration file...', required = True)
+parser.add_argument('-f','--file', help='name of conifiguration file...', required = True)
+
+args = vars(parser.parse_args())
+
+path = args['path']
+config = args['file']
+
+configed = pd.read_csv(path +'/'+ config, sep=",", dtype =object)
 
 for line in configed['File_Name']:
     if line.endswith("v") == True:
@@ -343,6 +357,7 @@ for samp in structure:
         else:
 
             prePtable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant','Var_len'], values= ['Percentage'],aggfunc={'Percentage':'first'})
+
             if prePtable.empty:
                 pass
             else:

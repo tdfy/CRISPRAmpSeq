@@ -68,8 +68,8 @@ tabulate([['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_1.output.csv','B2M','1','
 headers=['Directoy', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name','Time_Point','Chron_Order','Noise']),'\n'))
 ###-----------------------------------------------------------------------------------------------------------------------------###
 
-parser.add_argument('-p','--path', help='path to conifiguration file...', required = True)
-parser.add_argument('-f','--file', help='name of conifiguration file...', required = True)
+parser.add_argument('-p','--path', help='path to configuration file...', required = True)
+parser.add_argument('-f','--file', help='name of configuration file...', required = True)
 
 args = vars(parser.parse_args())
 

@@ -51,25 +51,22 @@ germSNP = {'TRAC':['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X
 'PIK':['39=1D182='],'B2M':['NA']}
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser(description=
-
-print("""
-Application to call CRISPR edits from amplicon sequencing libraries
-
+parser = argparse.ArgumentParser(description="Application to call CRISPR edits from amplicon sequencing libraries",add_help= False)
+parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,help=print("""
 Configuration Table Example:
-
 """,
-
 tabulate([['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_1.output.csv','B2M','1','T','PACE_20_B','1','1','Y'], ['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_2.output.csv','B2M','2','C','PACE_20_B','2','2','Y']],
-headers=['Directoy', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name','Time_Point','Chron_Order','Noise']),'\n'))
+headers=['Directory', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name','Time_Point','Chron_Order','Noise'])))
 
 parser.add_argument('-p','--path', help='path to configuration file...', required = True)
 parser.add_argument('-f','--file', help='name of configuration file.[CSV]', required = True)
+# parser.add_argument('-o','--out', help='path for out files...', required = True)
 
 args = vars(parser.parse_args())
 
 path = args['path']
 config = args['file']
+# out_path = args['out']
 
 configed = pd.read_csv(path +'/'+ config, sep=",", dtype =object)
 ###-----------------------------------------------------------------------------------------------------------------------------###
@@ -115,13 +112,13 @@ for Tag, comp in configed.groupby('Target'):
     for samp in structure[Tag]['File_Name']:
         data[samp] = pd.read_csv(dir + samp + '.output.csv', sep=",", dtype =object,skiprows=4)
 
-        #     ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ Opens output csv's as df's & generates list of controls per target group
+        ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ Opens output csv's as df's & generates list of controls per target group
         if len(control_dict[Tag]) == 1:
             data[samp] = data[samp][data[samp]['Percentage'].astype(float) >= .01] #<--------- threshold logic (.01)
         else:
             data[samp] = data[samp][data[samp]['Percentage'].astype(float) >= .1] #<--------- threshold logic
 
-        #     ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ filters reads by proportion criteria based on number of controls
+        ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ filters reads by proportion criteria based on number of controls
 
         data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(germSNP[comp['Target'].iloc[0]])), 'NoEdit', data[samp].iloc[:,4])  ##<------- labels 'Edit' column according to list of germline SNP CIGAR strings; if present in germSNP dict reassigned as 'NoEdit'
 
@@ -205,7 +202,7 @@ for samp in structure:
 
     #### _______Export_list________________________#
 
-    with open(comp['Target'].iloc[0]+r"_artifacts.txt", "w") as output:
+    with open(dir +comp['Target'].iloc[0]+r"_artifacts.txt", "w") as output:
         output.write(str(u))
 
 
@@ -360,13 +357,13 @@ for samp in structure:
 
         ##------------- New Export Block --------------------##
 
-        cig_alt.to_csv(file+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
+        cig_alt.to_csv(dir+file+r'_CIGAR_summary.csv', sep=',', header=True,index=False)
 
-        sample_edited.to_csv(file+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
-        rehead.to_csv('rehead.csv', sep=',', header=False,index=False)
+        sample_edited.to_csv(dir+file+r'_QC_Edited_pre.csv', sep=',', header=True,index=False)
+        rehead.to_csv(dir+'rehead.csv', sep=',', header=False,index=False)
 
-        with open(file+r'_QC.csv', 'w') as output:
-          for f in ['rehead.csv',file+r'_QC_Edited_pre.csv']:
+        with open(dir+file+r'_QC.csv', 'w') as output:
+          for f in [dir + 'rehead.csv',dir + file+r'_QC_Edited_pre.csv']:
             output.write(''.join([line for line in open(f).readlines() if line.strip()]))
 
             ##-----------------------------------------------##
@@ -433,7 +430,7 @@ indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage'
     # #_____Summary Block_______________________________#
 
 summary = pd.concat(rehead_dict.values(),ignore_index=True)
-summary.to_csv(comp['Experiment_Name'].iloc[0]+r'_summary_knockout.csv', sep=',', header=False,index=False)
+summary.to_csv(dir + comp['Experiment_Name'].iloc[0]+r'_summary_knockout.csv', sep=',', header=False,index=False)
 
 # #__________________KO Summary Formating____________________________#
 
@@ -462,6 +459,6 @@ KO_df['Total usable percentage:'] = round(KO_df['Total usable percentage:'].asty
 KO_df['Sample Edit Level:'] = round(KO_df['Sample Edit Level:'].astype(float),2)
 
 # #_______________Output Block_____________________________________________# #
-KO_df.to_csv(comp['Experiment_Name'].iloc[0]+'.csv', sep=',', header=True,index=False)
+KO_df.to_csv(dir + comp['Experiment_Name'].iloc[0]+'.csv', sep=',', header=True,index=False)
 
 print(KO_df)

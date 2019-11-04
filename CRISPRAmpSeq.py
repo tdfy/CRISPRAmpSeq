@@ -28,17 +28,12 @@ import collections
 import argparse
 from tabulate import tabulate
 
-# # User Variables:--------------------------------------------------------------------------------------------------------------
-
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------
 data = {}
 header_dict = {}
 pivot_dict = {}
 pivot_summary = pd.DataFrame()
 String_list = ['I','D','X']
-TRAC3_SNPlist = ['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46=']
-CIITA_SNPlist = ['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S']
-PIK_SNPlist = ['39=1D182=']
 B2M_SNPlist = []
 New_File_Name = []
 New_File_Dir = []
@@ -47,14 +42,15 @@ control_dict = {}
 ctrl_df_dict = {}
 KO_cat = []
 indel_dict = {}
-
 rehead_dict = {}
-
 cig_df_dict = {}
 compress_dict = {}
 CIGAR_sum_dict = {}
 
-###-----------------------------------------------------------------------------------------------------------------------------###
+germSNP = {'TRAC':['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46='], 'CIITA':['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S'],
+'PIK':['39=1D182='],'B2M':['NA']}
+
+# # User Variables:--------------------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description=
 
 print("""
@@ -66,10 +62,9 @@ Configuration Table Example:
 
 tabulate([['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_1.output.csv','B2M','1','T','PACE_20_B','1','1','Y'], ['/mnt/c/Export/Amp_test/PACE_21','90930_B2M_2.output.csv','B2M','2','C','PACE_20_B','2','2','Y']],
 headers=['Directoy', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name','Time_Point','Chron_Order','Noise']),'\n'))
-###-----------------------------------------------------------------------------------------------------------------------------###
 
 parser.add_argument('-p','--path', help='path to configuration file...', required = True)
-parser.add_argument('-f','--file', help='name of configuration file...', required = True)
+parser.add_argument('-f','--file', help='name of configuration file.[CSV]', required = True)
 
 args = vars(parser.parse_args())
 
@@ -77,6 +72,7 @@ path = args['path']
 config = args['file']
 
 configed = pd.read_csv(path +'/'+ config, sep=",", dtype =object)
+###-----------------------------------------------------------------------------------------------------------------------------###
 
 for line in configed['File_Name']:
     if line.endswith("v") == True:
@@ -116,7 +112,6 @@ for Tag, comp in configed.groupby('Target'):
 
     dir = comp['Directory'].iloc[0]
 
-
     for samp in structure[Tag]['File_Name']:
         data[samp] = pd.read_csv(dir + samp + '.output.csv', sep=",", dtype =object,skiprows=4)
 
@@ -128,18 +123,9 @@ for Tag, comp in configed.groupby('Target'):
 
         #     ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ filters reads by proportion criteria based on number of controls
 
-        if comp['Target'].iloc[0] == "TRAC":
-               data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(TRAC3_SNPlist)), 'NoEdit', data[samp].iloc[:,4])
-        elif comp['Target'].iloc[0] == "CIITA":
-               data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(CIITA_SNPlist)), 'NoEdit', data[samp].iloc[:,4])
-        elif comp['Target'].iloc[0] == "PIK":
-                data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(PIK_SNPlist)), 'NoEdit', data[samp].iloc[:,4])
-        elif comp['Target'].iloc[0] == "B2M":
-                data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(B2M_SNPlist)), 'NoEdit', data[samp].iloc[:,4])
-        else:
-            print("Target Error")
+        data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(germSNP[comp['Target'].iloc[0]])), 'NoEdit', data[samp].iloc[:,4])  ##<------- labels 'Edit' column according to list of germline SNP CIGAR strings; if present in germSNP dict reassigned as 'NoEdit'
 
-    #     ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ Removes known germplasm variants {convert to dictionary}
+         ###---------------------------------------------------------------------------------------------------------------###  ^^^^ Removes known germline variants {convert to dictionary}
 
 for file in control_dict:
     CIGAR_cat = []

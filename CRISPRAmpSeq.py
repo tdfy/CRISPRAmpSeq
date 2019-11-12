@@ -27,6 +27,7 @@ from cigar import Cigar
 import collections
 import argparse
 from tabulate import tabulate
+from collections import defaultdict
 
 # # Global Declarations:--------------------------------------------------------------------------------------------------------------
 data = {}
@@ -41,12 +42,12 @@ structure = {}
 control_dict = {}
 ctrl_df_dict = {}
 KO_cat = []
-indel_dict = {}
 rehead_dict = {}
 cig_df_dict = {}
 compress_dict = {}
 CIGAR_sum_dict = {}
 
+germSNP= defaultdict(lambda: 'NoTarg')
 germSNP = {'TRAC':['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46='], 'CIITA':['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S'],
 'PIK':['39=1D182='],'B2M':['NA']}
 
@@ -60,13 +61,12 @@ headers=['Directory', 'File_Name', 'Target','Sample', 'Design', 'Experiment_Name
 
 parser.add_argument('-p','--path', help='path to configuration file...', required = True)
 parser.add_argument('-f','--file', help='name of configuration file.[CSV]', required = True)
-# parser.add_argument('-o','--out', help='path for out files...', required = True)
 
 args = vars(parser.parse_args())
 
 path = args['path']
 config = args['file']
-# out_path = args['out']
+
 
 configed = pd.read_csv(path +'/'+ config, sep=",", dtype =object)
 ###-----------------------------------------------------------------------------------------------------------------------------###
@@ -236,14 +236,15 @@ for samp in structure:
             data[file].iloc[:,4] = np.where((data[file].iloc[:,5].isin(u)) & (data[file].iloc[:,4] != 'NoEdit')  |
                 (data[file].iloc[:,5] == '*') ,'NoEdit',data[file].iloc[:,4])
 
+            # data[file].iloc[:,4] = np.where((data[file].iloc[:,5].str.contains('D|I')==False),'NoEdit', data[file].iloc[:,4]) #<----------------- Redefines reads that are substitutions at a freq<4 as 'NoEdit'---rather than discard artifacts that do not contain Indel and are observed at a >4% freq
+
+
             #####_____________________________________________________________________________######
 
 
         sample_edited = data[file][data[file]['sus_artifact'].str.contains('real')].copy()
 
         artifact_sum = data[file][data[file]['sus_artifact'].str.contains('artifact')].copy() #<----------------- Artifact summary
-
-        # data[file].to_csv(file+r'_logic.csv', sep=',', header=True,index=False) #<-------- Check suspected artifact logic
 
        # # __Calculated Variables for New Header____#
         Proper_reads = int(header_dict[file][1].split(',')[1])
@@ -253,14 +254,13 @@ for samp in structure:
         sample_edited.iloc[:,2] = (sample_edited.iloc[:,1].astype(int)/Proper_reads_edit)*100
         QC_level= sample_edited[~sample_edited['Type'].str.contains('NoEdit')]
 
+
         if len(QC_level.index) == 0:
             Sample_Edit_Level = '0.0'
         else:
             Sample_Edit_Level = round(sum(QC_level.Percentage),4)
 
-            # sample_level.to_csv(file+r'_edit_inq.csv', sep=',', header=True,index=False) #<-------- Check edited %
-
-        hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit'])) #<-------- Creates dictionary of read number associated with CIGAR string
+        hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit']))
 
         # #___Create & Append New Header____#
 
@@ -305,7 +305,6 @@ for samp in structure:
                     var_list.append(variant)
                     cig_pack.append(cig)
 
-                    # print(cig,slice_m,variant,indelcious)
                 else:
                     pass
 
@@ -319,7 +318,7 @@ for samp in structure:
 
 
         if (len(u) == 1) & (comp['Noise'].iloc[0] == 'Yes'):
-            cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)] ##<--------- Add Noise "Yes" parameter?
+            cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)]
             cig_alt = cig_alt.drop_duplicates(keep='first')
 
             cig_alt = cig_alt.sort_values(['Var_len'], ascending=[True])
@@ -378,6 +377,7 @@ for loci in Targs:
     Ptable4 = pd.DataFrame(Ptable4.to_records())
     Ptable4['Variant'] = Ptable4['Variant'].str.replace('\W', '') #<----- removes comma sep and {}
 
+
     if comp['Noise'].iloc[0] == 'Yes':
         Ptable4.Variant = np.where((Ptable4.Variant.str.startswith('D')),'D',Ptable4.Variant)
         Ptable4.Variant = np.where((Ptable4.Variant.str.startswith('I')),'I',Ptable4.Variant)
@@ -421,7 +421,6 @@ combo_pi_pivot= combo_pi.pivot_table(index=['Sample_Name'], values=['Percentage'
 combo_pi_pivot = pd.DataFrame(combo_pi_pivot.to_records())
 combo_pi_pivot['Percentage'] = round(combo_pi_pivot['Percentage'],2)
 
-
 combo_pi_pivot['Samp_No'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(2)
 combo_pi_pivot['Locus'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(1)
 
@@ -434,7 +433,7 @@ summary.to_csv(dir + comp['Experiment_Name'].iloc[0]+r'_summary_knockout.csv', s
 
 # #__________________KO Summary Formating____________________________#
 
-hope = np.array_split(summary, (len(sample_dict)*4)) #<---- 120 rows in merged file / 5 lines per samples => 24
+hope = np.array_split(summary, (len(sample_dict)*len(Targs)))
 
 for i in hope:
     i_tran= i.transpose()

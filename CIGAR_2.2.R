@@ -7,8 +7,7 @@ library(GenomicRanges)
 library(magick)
 library(dplyr)
 
-samp_name <- list("VP-19-002.02.G1/TDN,R1C1 S1D5","VP-19-002.02.G1/TDN,R1C1 S1D7","VP-19-002.02.G1/TDN,R1C1 Post-H","VP-19-002.02.G1 D(-2)","VP-19-002.02.G1 D(0)")
-
+samp_name <- list()
 B2M <- image_read("B2M.png") %>% image_border("grey", "2x1") 
 B2M <-image_annotate(B2M, "D", font = 'serif', size = 70,location = "+20+20")
 PIK <- image_read("PIK.png") %>% image_border("grey", "2x1")

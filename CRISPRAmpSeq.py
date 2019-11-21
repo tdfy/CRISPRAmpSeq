@@ -35,7 +35,6 @@ header_dict = {}
 pivot_dict = {}
 pivot_summary = pd.DataFrame()
 String_list = ['I','D','X']
-B2M_SNPlist = []
 New_File_Name = []
 New_File_Dir = []
 structure = {}
@@ -47,9 +46,12 @@ cig_df_dict = {}
 compress_dict = {}
 CIGAR_sum_dict = {}
 
-germSNP= defaultdict(lambda: 'NoTarg')
-germSNP = {'TRAC':['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46='], 'CIITA':['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S'],
-'PIK':['39=1D182='],'B2M':['NA']}
+germSNP= defaultdict(lambda: [])
+
+germSNP['TRAC']=['198=1X36=','1S198=1X36=','197=1X36=','198=1X35=1X1S','188=1X46=']
+germSNP['CIITA']=['52=1X176=2S','1X51=11X176=2S','1X51=1X176=2S']
+germSNP['PIK']=['39=1D182=']
+germSNP['B2M']=[]
 
 # # User Variables:--------------------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Application to call CRISPR edits from amplicon sequencing libraries",add_help= False)
@@ -100,7 +102,6 @@ configed['Full_Name'] = configed['Experiment_Name'] +'_'+ configed['Time_Point']
 
 sample_dict = dict(zip(configed['Sample'], configed['Full_Name']))
 
-
 for Tag, comp in configed.groupby('Target'):
     structure[Tag] = comp.sort_values(['Design'], ascending=[False])
 
@@ -116,7 +117,7 @@ for Tag, comp in configed.groupby('Target'):
         if len(control_dict[Tag]) == 1:
             data[samp] = data[samp][data[samp]['Percentage'].astype(float) >= .01] #<--------- threshold logic (.01)
         else:
-            data[samp] = data[samp][data[samp]['Percentage'].astype(float) >= .1] #<--------- threshold logic
+            data[samp] = data[samp][data[samp]['Percentage'].astype(float) >= .01] #<--------- threshold logic
 
         ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ filters reads by proportion criteria based on number of controls
 
@@ -160,11 +161,7 @@ for samp in structure:
             print("Length of Artifacts:",len(u1),len(u2),len(u3))
 
     elif len(ctrl_df_dict[samp].columns) == 1:
-            u = []
-            cig_df = pd.DataFrame()
             pos_list = []
-            var_list = []
-            cig_pack = []
 
             changes = ctrl_df_dict[samp].iloc[:,0].tolist()
             for cig in changes:
@@ -183,7 +180,7 @@ for samp in structure:
                     else:
                         pass
 
-            artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 50] #<--------- Threshold for substitution pileup
+            artifact_pos = [item for item, count in collections.Counter(pos_list).items() if count > 5] #<--------- Threshold for substitution pileup
 
             print(samp,artifact_pos)
 
@@ -202,8 +199,8 @@ for samp in structure:
 
     #### _______Export_list________________________#
 
-    with open(dir +comp['Target'].iloc[0]+r"_artifacts.txt", "w") as output:
-        output.write(str(u))
+    # with open(dir +comp['Target'].iloc[0]+r"_artifacts.txt", "w") as output:   ###<<<<<<<-------------- "u" is not defined in 1 control scenerio
+    #     output.write(str(u))
 
 
     #####__________________________QC Analysis_____________________________________#
@@ -219,9 +216,9 @@ for samp in structure:
         with open(dir + file + '.output.csv' ) as myfile:
             header_dict[file] = [next(myfile) for x in range(4)]
 
-        QC = pd.read_csv(dir + file + '.output.csv' , sep=",", dtype =object,skiprows=4)
+        # QC = pd.read_csv(dir + file + '.output.csv' , sep=",", dtype =object,skiprows=4)  #####<<<<<<<<<<------------------ Necessary????????????
 
-        if len(u) == 1:
+        if len(ctrl) == 1:
                 data[file]['sus_artifact'] = 'real'
         else:
 
@@ -241,10 +238,11 @@ for samp in structure:
 
             #####_____________________________________________________________________________######
 
-
         sample_edited = data[file][data[file]['sus_artifact'].str.contains('real')].copy()
 
         artifact_sum = data[file][data[file]['sus_artifact'].str.contains('artifact')].copy() #<----------------- Artifact summary
+
+        # print(sample_edited.loc[(sample_edited.iloc[:,4] != "NoEdit") & (sample_edited.iloc[:,4] != "S")].Percentage.astype(float).sum())
 
        # # __Calculated Variables for New Header____#
         Proper_reads = int(header_dict[file][1].split(',')[1])
@@ -253,7 +251,6 @@ for samp in structure:
         Total_usable_percentage_edit = (float(Proper_reads_edit)/float(Total_Read_Pair))*100
         sample_edited.iloc[:,2] = (sample_edited.iloc[:,1].astype(int)/Proper_reads_edit)*100
         QC_level= sample_edited[~sample_edited['Type'].str.contains('NoEdit')]
-
 
         if len(QC_level.index) == 0:
             Sample_Edit_Level = '0.0'
@@ -317,14 +314,14 @@ for samp in structure:
         cig_df['Var_len'] = varlen_list
 
 
-        if (len(u) == 1) & (comp['Noise'].iloc[0] == 'Yes'):
-            cig_alt = cig_df.loc[(cig_df['Variant'] != 'X') & ~cig_df.Position.isin(artifact_pos)]
+        if (len(ctrl) == 1):# & (comp['Noise'].iloc[0] == 'Yes'): ###<<<<---------------------------------------------------------- Review 'Yes' in config file
+            cig_alt = cig_df.loc[((cig_df['Variant'] != 'X') & (~cig_df.Position.isin(artifact_pos)))]
             cig_alt = cig_alt.drop_duplicates(keep='first')
-
             cig_alt = cig_alt.sort_values(['Var_len'], ascending=[True])
 
         else:
             cig_alt = cig_df
+
 
         if comp['Noise'].iloc[0] == 'Yes':    ## <------------------------------------------ #Necessary to remove edit genotypes with multiple deletions/insertions for composition fig.
             Ptable_indel = cig_alt
@@ -336,6 +333,7 @@ for samp in structure:
                 pass
             else:
                 Ptable = pd.DataFrame(prePtable.to_records())
+
         else:
 
             prePtable = cig_df.pivot_table(index=['Sample_Name','CIGAR','Variant','Var_len'], values= ['Percentage'],aggfunc={'Percentage':'first'})
@@ -353,6 +351,9 @@ for samp in structure:
             pass
 
         cig_df_dict[file] = Ptable
+        # prePtable.to_csv(dir + file + 'INQUIRY_PREptable'+'.csv', sep=',', header=True,index=False)
+        # Ptable.to_csv(dir + file + 'INQUIRY_ptable'+'.csv', sep=',', header=True,index=False)
+
 
         ##------------- New Export Block --------------------##
 
@@ -369,14 +370,18 @@ for samp in structure:
 
 for loci in Targs:
     key_list =  list(cig_df_dict.keys())
-    sorted_keys = [k for k in key_list if loci in k]    ####<<<<------------ creates sub set list by target loci
+
+    if len(Targs) == 1:
+        sorted_keys = key_list
+    else:
+        sorted_keys = [k for k in key_list if loci in k]    ####<<<<------------ creates sub set list by target loci
+
     cig_select = {akey:cig_df_dict[akey] for akey in sorted_keys if akey in cig_df_dict} ####<<<<------------ creates sub set dictionary from cig_df_dict based on sorted_keys list
     Ptable2 = pd.concat(cig_select.values(),ignore_index=True)
     Ptable3 = Ptable2.groupby(['Percentage','Sample_Name','CIGAR'])['Variant'].apply(lambda x: "{%s}" % ', '.join(x)) #<----- combines variants classes into one string
     Ptable4 = pd.DataFrame(Ptable3)
     Ptable4 = pd.DataFrame(Ptable4.to_records())
     Ptable4['Variant'] = Ptable4['Variant'].str.replace('\W', '') #<----- removes comma sep and {}
-
 
     if comp['Noise'].iloc[0] == 'Yes':
         Ptable4.Variant = np.where((Ptable4.Variant.str.startswith('D')),'D',Ptable4.Variant)
@@ -404,7 +409,12 @@ for loci in Targs:
 pivot_sum = pd.concat(compress_dict.values(),ignore_index=True)
 pivot_sum = pivot_sum[pivot_sum['Percentage'] != 0 ]
 
-Sample_list = pivot_sum['Sample_Name'].unique()
+pivot_sum_ex = pivot_sum[pivot_sum['Variant'].str.contains('D|I|NoEdit')].copy()
+pivot_sum_ex['Variant'] = np.where(pivot_sum_ex['Variant'].str.contains('D') & (~pivot_sum_ex['Variant'].str.contains('I')),'D',pivot_sum_ex['Variant'])
+pivot_sum_ex['Variant'] = np.where(pivot_sum_ex['Variant'].str.contains('I') & (~pivot_sum_ex['Variant'].str.contains('D')),'I',pivot_sum_ex['Variant'])
+pivot_sum_ex['Variant'] = np.where(pivot_sum_ex['Variant'].str.contains('DI'),'DI',pivot_sum_ex['Variant'])
+pivot_sum_ex = pivot_sum_ex.pivot_table(index=['Sample_Name','Variant'], values= ['Percentage'],aggfunc={'Percentage':'sum'})
+pivot_sum_ex.to_csv(dir + Targs[0]+'_PIVOT_summary.csv') ###<<<<<<<<<----------------------------- {Export}
 
 pivot_sum2 = pivot_sum[pivot_sum['Variant'].str.contains('D|I')].copy()
 pivot_sum2['Percentage'] = pivot_sum2['Percentage'].astype(float)
@@ -416,6 +426,7 @@ pivot_sum_noedit= pivot_sum_noedit.pivot_table(index=['Sample_Name'], values=['P
 pivot_sum_noedit2 = pd.DataFrame(pivot_sum_noedit.to_records())
 pivot_sum_noedit2['Percentage'] = 0
 
+
 combo_pi = pd.concat([pivot_sum3,pivot_sum_noedit2],axis=0)
 combo_pi_pivot= combo_pi.pivot_table(index=['Sample_Name'], values=['Percentage'],aggfunc={'Percentage':'sum'})
 combo_pi_pivot = pd.DataFrame(combo_pi_pivot.to_records())
@@ -425,6 +436,8 @@ combo_pi_pivot['Samp_No'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get
 combo_pi_pivot['Locus'] = combo_pi_pivot['Sample_Name'].str.split('_').str.get(1)
 
 indel_dict = dict(zip(combo_pi_pivot['Sample_Name'], combo_pi_pivot['Percentage']))
+
+
 
     # #_____Summary Block_______________________________#
 
@@ -443,16 +456,21 @@ for i in hope:
 KO_df = pd.concat(KO_cat,axis=0)     ### concats to one DF
 KO_df= KO_df[KO_df['Sample Name:'].str.contains('_')]#<-------- Assumes all Specimen Names contain '_'
 
-KO_df['Samp_No'] = KO_df['Sample Name:'].str.split('_').str.get(2)
-KO_df['Locus'] = KO_df['Sample Name:'].str.split('_').str.get(1)
+if len(Targs) > 1:
+    KO_df['Samp_No'] = KO_df['Sample Name:'].str.split('_').str.get(2)
+    KO_df['Locus'] = KO_df['Sample Name:'].str.split('_').str.get(1)
+    KO_df["Specimen_Name"] = KO_df['Samp_No'].map(sample_dict)
 
-KO_df = KO_df.sort_values(['Samp_No','Locus'], ascending=[True,True])
+    KO_df = KO_df.sort_values(['Samp_No','Locus'], ascending=[True,True])
 
-KO_df["Insertion/Deletion_Level_(%)"] = KO_df['Sample Name:'].map(indel_dict)
 
-KO_df["Specimen_Name"] = KO_df['Samp_No'].map(sample_dict)
+else:
+    KO_df['Locus'] = configed['Target'].iloc[0]
+    KO_df['Specimen_Name'] = KO_df['Sample Name:']
 
-KO_df = KO_df[['Specimen_Name','Locus','Total Read Pairs:','Proper Read Pairs:','Total usable percentage:','Sample Edit Level:',"Insertion/Deletion_Level_(%)"]]
+KO_df["Insertion/Deletion_Level_(%):"] = KO_df['Sample Name:'].map(indel_dict)
+
+KO_df = KO_df[['Specimen_Name','Locus','Total Read Pairs:','Proper Read Pairs:','Total usable percentage:','Sample Edit Level:',"Insertion/Deletion_Level_(%):"]]
 
 KO_df['Total usable percentage:'] = round(KO_df['Total usable percentage:'].astype(float),2)
 KO_df['Sample Edit Level:'] = round(KO_df['Sample Edit Level:'].astype(float),2)

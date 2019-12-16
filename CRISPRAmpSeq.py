@@ -257,7 +257,22 @@ for samp in structure:
         else:
             Sample_Edit_Level = round(sum(QC_level.Percentage),4)
 
-        hit_dict = dict(zip(sample_edited['CIGAR'], sample_edited['Hit']))
+        #__CIGAR Modification Block______________________##
+        changes = QC_level['CIGAR'].tolist()
+
+        carton = [item for item, count in collections.Counter(changes).items() if count > 1] ####<<<<<------- Necessary in the event of shared CIGAR notations (substitution w/ different NT)
+
+        new_changes = []
+        for index,cig in enumerate(changes):
+
+            if cig in carton:
+                cig_alt = cig + str(index)
+                new_changes.append(cig_alt)
+            else:
+                new_changes.append(cig)
+
+        hit_list = QC_level['Hit'].tolist()
+        hit_dict = dict(zip(new_changes, hit_list))
 
         # #___Create & Append New Header____#
 
@@ -274,8 +289,8 @@ for samp in structure:
         # print(rehead)
 
             # #______CIGAR String Block______________________# #
-        changes = QC_level['CIGAR'].tolist()
-        for cig in changes:
+        # changes = QC_level['CIGAR'].tolist()
+        for cig in new_changes:
             CIGAR_edit = Cigar(cig)
             CIG_list = list(CIGAR_edit.items())
 

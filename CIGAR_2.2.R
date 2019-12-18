@@ -1,4 +1,5 @@
-setwd("c:/Export/20190705_Amp_SeqFiltered-138247127/")
+setwd("c:/Export/20191202_307_360/Seq_files/")
+
 library(ggplot2)
 library(GenomicFeatures)
 library(ggbio)
@@ -8,14 +9,15 @@ library(magick)
 library(dplyr)
 
 samp_name <- list()
-B2M <- image_read("B2M.png") %>% image_border("grey", "2x1") 
-B2M <-image_annotate(B2M, "D", font = 'serif', size = 70,location = "+20+20")
-PIK <- image_read("PIK.png") %>% image_border("grey", "2x1")
-PIK <-image_annotate(PIK, "D", font = 'serif', size = 70,location = "+20+20")
-CIITA <- image_read("CIITA.png") %>% image_border("grey", "2x1")
-CIITA <-image_annotate(CIITA, "D", font = 'serif', size = 70,location = "+20+20")
-TRAC <- image_read("TRAC.png") %>% image_border("grey", "2x1")
-TRAC <-image_annotate(TRAC, "D", font = 'serif', size = 70,location = "+20+20")
+
+B2M <- image_read("B2M_307.png") %>% image_border("grey", "2x1") 
+# B2M <-image_annotate(B2M, "D", font = 'serif', size = 70,location = "+20+20")
+PIK <- image_read("PIK_307.png") %>% image_border("grey", "2x1")
+# PIK <-image_annotate(PIK, "D", font = 'serif', size = 70,location = "+20+20")
+CIITA <- image_read("CIITA_307.png") %>% image_border("grey", "2x1")
+# CIITA <-image_annotate(CIITA, "D", font = 'serif', size = 70,location = "+20+20")
+TRAC <- image_read("TRAC_307.png") %>% image_border("grey", "2x1")
+# TRAC <-image_annotate(TRAC, "D", font = 'serif', size = 70,location = "+20+20")
 
 #_______________________________________________________________________________________________________________#
 
@@ -64,13 +66,22 @@ Dummy_2 = data.frame(CIGAR, Hit, Position, Variant, Sample_Name,Var_len,plot_pos
 Dummy_df = rbind(Dummy_2,Dummy_1)
 
 
+Var_len = c(0)
+Hit = c(0)
+Variant = c('I')
+Dummy_ins_agg = data.frame(Var_len,Hit,Variant)
 
-filenames <- list.files("c:/Export/20190705_Amp_SeqFiltered-138247127/", pattern=glob2rx("190705_B2M_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
+Var_len = c(0)
+Hit = c(0)
+Variant = c('D')
+Dummy_del_agg = data.frame(Var_len,Hit,Variant)
+
+filenames <- list.files("c:/Export/20191202_307_360/Seq_files/", pattern=glob2rx("20191209_B2M_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
 
 max_list <- list()
 
 
-for (sample in filenames[c(1:3)])
+for (sample in filenames[c(1:4)])
 {
   df<-read.csv(sample, header=TRUE, sep=",")
   melt <- aggregate(df$Percentage, by=list(Position=df$Position), FUN=sum)
@@ -80,7 +91,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames) 
+for (sample in filenames[c(1:4)])
 {
   mydataB2M <- read.csv(sample, header=TRUE, sep=",")
   mydataB2M$Position= as.numeric(mydataB2M$Position)+44711473
@@ -97,24 +108,29 @@ for(sample in filenames)
   del <- subset(mydataB2M, Variant=='D')
   ins <- subset(mydataB2M, Variant=='I')
 
-  
   ### Penta DF Block #####
   
-  alt <-mydataB2M
-  alt <-select(alt,Variant,Hit,Var_len)
+  alt1 <-mydataB2M
+
+  alt <- alt1[,c("Variant","Hit","Var_len")]
   
   deletion <- subset(alt, Variant=='D')
   insertion <- subset(alt, Variant=='I')
   
+  if (nrow(deletion)!=0){
+    agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+    agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+    agg_del$Variant <- "D"
+  }else {agg_del <-Dummy_del_agg}
   
-  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
-  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  if (nrow(insertion)!=0){
+    agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+    agg_ins$Variant <- "I"
+  }else {agg_ins <-Dummy_ins_agg }
   
-  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
-  agg_del$Variant <- "D"
-  agg_ins$Variant <- "I"
   
   new_data = rbind(agg_del,agg_ins)
+  
 
   ###_______________________________________________________#########
   
@@ -132,8 +148,8 @@ for(sample in filenames)
     ]
   
 
-  link <- substr(sample,53,57)
-  link_no <-substr(sample,57,57)
+  link <- substr(sample,47,49)
+  link_no <-substr(sample,51,51)
   har <- as.integer((link_no))
   new_title <- toString(samp_name[har])
   
@@ -151,20 +167,28 @@ for(sample in filenames)
   
   sample <- tracks("Percentage"=B2M_cigar,"B2M"=B2M_loc,heights=c(0.1,0.01),label.text.cex=c(1,1),title = new_title,label.bg.fill=('white'))
   
-  hope = paste(link, ".png", sep="")
+  hope = paste(link,link_no, ".png", sep="")
   ggsave(hope)
   
-  penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
-    theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
-    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+  if (max(abs(new_data$Hit)) > 1000){
+    
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+    
+  }else {
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(limits = c(-100000,100000))+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))}
   
+  # print(new_data)
   
-  
-  penta_hope = paste(link, "_penta.png", sep="")
+  penta_hope = paste(link,link_no, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
-  samp_plot <- image_read(paste(link,".png",sep=""))
-  pent_plot <- image_read(paste(link,"_penta.png",sep=""))
+  samp_plot <- image_read(paste(link,link_no,".png",sep=""))
+  pent_plot <- image_read(paste(link,link_no,"_penta.png",sep=""))
 
   pen_cat <- image_append(c(samp_plot,pent_plot))
   pen_cat <- image_border(pen_cat, "grey", "2x1")
@@ -173,20 +197,21 @@ for(sample in filenames)
   pen_cat <-image_annotate(pen_cat, "C", font = 'serif', size = 70,location = "+1180+100")
   
 
-  image_write(pen_cat,(paste(link,"_Cat.png",sep="")))
+  image_write(pen_cat,(paste(link,link_no,"_Cat.png",sep="")))
   
 }
 
-B2M_1 <- image_read("B2M_1_Cat.png")
-B2M_2 <- image_read("B2M_2_Cat.png")
-B2M_3 <- image_read("B2M_3_Cat.png")
-B2M_4 <- image_read("B2M_4_Cat.png")
-B2M_5 <- image_read("B2M_5_Cat.png")
+B2M_1 <- image_read("B2M1_Cat.png")
+B2M_2 <- image_read("B2M2_Cat.png")
+B2M_3 <- image_read("B2M3_Cat.png")
+B2M_4 <- image_read("B2M4_Cat.png")
+# B2M_5 <- image_read("B2M_5_Cat.png")
 
 
-tiger_style <- image_append(c(B2M_5, B2M_1))
-method_style <- image_append(c(B2M_2, B2M_3))
-woo <- image_append(c(B2M_4,B2M))
+tiger_style <- image_append(c(B2M_1, B2M_2))
+method_style <- image_append(c(B2M_3, B2M_4))
+# woo <- image_append(c(B2M_4,B2M))
+woo <- B2M
 ghost <- image_append(c(tiger_style,method_style,woo),stack=TRUE)
 
 
@@ -234,13 +259,13 @@ Dummy_2 = data.frame(CIGAR, Hit, Position, Variant, Sample_Name,Var_len,plot_pos
 Dummy_df = rbind(Dummy_2,Dummy_1)
 
 
-filenames <- list.files("c:/Export/20190705_Amp_SeqFiltered-138247127/", pattern=glob2rx("190705_CIITA_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
+filenames <- list.files("c:/Export/20191202_307_360/Seq_files/", pattern=glob2rx("20191209_CIITA_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
 
 
 max_list <- list()
 
 
-for (sample in filenames[c(1:3)])
+for (sample in filenames[c(1:4)])
 {
   df<-read.csv(sample, header=TRUE, sep=",")
   melt <- aggregate(df$Percentage, by=list(Position=df$Position), FUN=sum)
@@ -250,7 +275,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames)
+for (sample in filenames[c(1:4)])
 {
   mydataCIITA <- read.csv(sample, header=TRUE, sep=",")
   mydataCIITA$Position= as.numeric(mydataCIITA$Position)+10916241 ###<------------------ CHECK
@@ -269,22 +294,26 @@ for(sample in filenames)
   
   ### Penta DF Block #####
   
-  alt <-mydataCIITA
-  alt <-select(alt,Variant,Hit,Var_len)
+  alt1 <-mydataCIITA
+  
+  alt <- alt1[,c("Variant","Hit","Var_len")]
   
   deletion <- subset(alt, Variant=='D')
   insertion <- subset(alt, Variant=='I')
   
+  if (nrow(deletion)!=0){
+    agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+    agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+    agg_del$Variant <- "D"
+  }else {agg_del <-Dummy_del_agg}
   
-  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
-  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  if (nrow(insertion)!=0){
+    agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+    agg_ins$Variant <- "I"
+  }else {agg_ins <-Dummy_ins_agg }
   
-  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
-  agg_del$Variant <- "D"
-  agg_ins$Variant <- "I"
   
   new_data = rbind(agg_del,agg_ins)
-  
   ##_________________________________________________________##
   
   mydataCIITA <-mydataCIITA[
@@ -301,8 +330,8 @@ for(sample in filenames)
     ]
   
   
-    link <- substr(sample,53,59)
-    link_no <-substr(sample,59,59)
+    link <- substr(sample,47,51)
+    link_no <-substr(sample,53,53)
     har <- as.integer((link_no))
     new_title <- toString(samp_name[har])
   
@@ -320,21 +349,35 @@ for(sample in filenames)
   
   sample <- tracks("Percentage"=CIITA_cigar,"CIITA"=CIITA_loc,heights=c(0.1,0.01),label.text.cex=c(1,1),title = new_title,label.bg.fill=('white'))
   
-  hope = paste(link, ".png", sep="")
+  hope = paste(link,link_no, ".png", sep="")
   ggsave(hope)
   
-  quad <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
-    theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)')
+  if (max(abs(new_data$Hit)) > 1000){
+    
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+    
+  }else {
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(limits = c(-100000,100000))+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))}
   
-  penta <- quad + scale_y_continuous(limit = c(min(ggplot_build(quad)$data[[1]]$y),max(abs(ggplot_build(quad)$data[[1]]$y))),label=function(Hit){abs(Hit)})+ 
-    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15)) ##<-------------- alternate penta histogram to account for low edit frequencies, breaks as fxn of 
+  
+  # quad <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+  #   theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+  #   ylab('Reads')+ xlab('Indel Length (bp)')
+  # 
+  # penta <- quad + scale_y_continuous(limit = c(min(ggplot_build(quad)$data[[1]]$y),max(abs(ggplot_build(quad)$data[[1]]$y))),label=function(Hit){abs(Hit)})+ 
+    # ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15)) ##<-------------- alternate penta histogram to account for low edit frequencies, breaks as fxn of 
   
   
-  penta_hope = paste(link, "_penta.png", sep="")
+  penta_hope = paste(link,link_no, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
-  samp_plot <- image_read(paste(link,".png",sep=""))
-  pent_plot <- image_read(paste(link,"_penta.png",sep=""))
+  samp_plot <- image_read(paste(link,link_no,".png",sep=""))
+  pent_plot <- image_read(paste(link,link_no,"_penta.png",sep=""))
   
   pen_cat <- image_append(c(samp_plot,pent_plot))
   pen_cat <- image_border(pen_cat, "grey", "2x1")
@@ -344,20 +387,21 @@ for(sample in filenames)
   
   
   
-  image_write(pen_cat,(paste(link,"_Cat.png",sep="")))
+  image_write(pen_cat,(paste(link,link_no,"_Cat.png",sep="")))
   
 }
 
-CIITA_1 <- image_read("CIITA_1_Cat.png")
-CIITA_2 <- image_read("CIITA_2_Cat.png")
-CIITA_3 <- image_read("CIITA_3_Cat.png")
-CIITA_4 <- image_read("CIITA_4_Cat.png")
-CIITA_5 <- image_read("CIITA_5_Cat.png")
+CIITA_1 <- image_read("CIITA1_Cat.png")
+CIITA_2 <- image_read("CIITA2_Cat.png")
+CIITA_3 <- image_read("CIITA3_Cat.png")
+CIITA_4 <- image_read("CIITA4_Cat.png")
+# CIITA_5 <- image_read("CIITA_5_Cat.png")
 
 
-tiger_style <- image_append(c(CIITA_5, CIITA_1))
-method_style <- image_append(c(CIITA_2, CIITA_3))
-woo <- image_append(c(CIITA_4,CIITA))
+tiger_style <- image_append(c(CIITA_1, CIITA_2))
+method_style <- image_append(c(CIITA_3, CIITA_4))
+woo <- CIITA
+# woo <- image_append(c(CIITA_4,CIITA))
 ghost <- image_append(c(tiger_style,method_style,woo),stack=TRUE)
 
 
@@ -407,12 +451,12 @@ Dummy_df = rbind(Dummy_2,Dummy_1)
 
 
 
-filenames <- list.files("c:/Export/20190705_Amp_SeqFiltered-138247127/", pattern=glob2rx("190705_TRAC_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_TRAC_2_CIGAR_summary.csv
+filenames <- list.files("c:/Export/20191202_307_360/Seq_files/", pattern=glob2rx("20191209_TRAC_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
 
 max_list <- list()
 
 
-for (sample in filenames[c(1:3)])
+for (sample in filenames[c(1:4)])
 {
   df<-read.csv(sample, header=TRUE, sep=",")
   melt <- aggregate(df$Percentage, by=list(Position=df$Position), FUN=sum)
@@ -422,7 +466,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames) 
+for (sample in filenames[c(1:4)])
 {
   mydataTRAC <- read.csv(sample, header=TRUE, sep=",")
   mydataTRAC$Position= as.numeric(mydataTRAC$Position)+22550515
@@ -440,21 +484,27 @@ for(sample in filenames)
   
   ### Penta DF Block #####
   
-  alt <-mydataTRAC
-  alt <-select(alt,Variant,Hit,Var_len)
+  alt1 <-mydataTRAC
+  
+  alt <- alt1[,c("Variant","Hit","Var_len")]
   
   deletion <- subset(alt, Variant=='D')
   insertion <- subset(alt, Variant=='I')
   
+  if (nrow(deletion)!=0){
+    agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+    agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+    agg_del$Variant <- "D"
+  }else {agg_del <-Dummy_del_agg}
   
-  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
-  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  if (nrow(insertion)!=0){
+    agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+    agg_ins$Variant <- "I"
+  }else {agg_ins <-Dummy_ins_agg }
   
-  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
-  agg_del$Variant <- "D"
-  agg_ins$Variant <- "I"
   
   new_data = rbind(agg_del,agg_ins)
+  
   
   ##_________________________________________________________##
   
@@ -472,8 +522,8 @@ for(sample in filenames)
     ]
   
   
-  link <- substr(sample,53,58)
-  link_no <-substr(sample,58,58)
+  link <- substr(sample,47,50)
+  link_no <-substr(sample,52,52)
   har <- as.integer((link_no))
   new_title <- toString(samp_name[har])
   
@@ -491,18 +541,26 @@ for(sample in filenames)
   
   sample <- tracks("Percentage"=TRAC_cigar,"TRAC"=TRAC_loc,heights=c(0.1,0.01),label.text.cex=c(1,1),title = new_title,label.bg.fill=('white'))
   
-  hope = paste(link, ".png", sep="")
+  hope = paste(link,link_no, ".png", sep="")
   ggsave(hope)
   
-  penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
-    theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
-    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+  if (max(abs(new_data$Hit)) > 1000){
+    
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+    
+  }else {
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(limits = c(-100000,100000))+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))}
   
-  penta_hope = paste(link, "_penta.png", sep="")
+  penta_hope = paste(link,link_no, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
-  samp_plot <- image_read(paste(link,".png",sep=""))
-  pent_plot <- image_read(paste(link,"_penta.png",sep=""))
+  samp_plot <- image_read(paste(link,link_no,".png",sep=""))
+  pent_plot <- image_read(paste(link,link_no,"_penta.png",sep=""))
   
   pen_cat <- image_append(c(samp_plot,pent_plot))
   pen_cat <- image_border(pen_cat, "grey", "2x1")
@@ -512,20 +570,21 @@ for(sample in filenames)
   
   
   
-  image_write(pen_cat,(paste(link,"_Cat.png",sep="")))
+  image_write(pen_cat,(paste(link,link_no,"_Cat.png",sep="")))
   
 }
 
-TRAC_1 <- image_read("TRAC_1_Cat.png")
-TRAC_2 <- image_read("TRAC_2_Cat.png")
-TRAC_3 <- image_read("TRAC_3_Cat.png")
-TRAC_4 <- image_read("TRAC_4_Cat.png")
-TRAC_5 <- image_read("TRAC_5_Cat.png")
+TRAC_1 <- image_read("TRAC1_Cat.png")
+TRAC_2 <- image_read("TRAC2_Cat.png")
+TRAC_3 <- image_read("TRAC3_Cat.png")
+TRAC_4 <- image_read("TRAC4_Cat.png")
+# TRAC_5 <- image_read("TRAC_5_Cat.png")
 
 
-tiger_style <- image_append(c(TRAC_5, TRAC_1))
-method_style <- image_append(c(TRAC_2, TRAC_3))
-woo <- image_append(c(TRAC_4,TRAC))
+tiger_style <- image_append(c(TRAC_1, TRAC_2))
+method_style <- image_append(c(TRAC_3, TRAC_4))
+# woo <- image_append(c(TRAC_4,TRAC))
+woo <- TRAC
 ghost <- image_append(c(tiger_style,method_style,woo),stack=TRUE)
 
 
@@ -560,13 +619,13 @@ Variant = c("I")
 Dummy_2 = data.frame(CIGAR, Hit, Position, Variant, Sample_Name,Var_len,plot_pos,Percentage)
 Dummy_df = rbind(Dummy_2,Dummy_1)
 
-filenames <- list.files("c:/Export/20190705_Amp_SeqFiltered-138247127/", pattern=glob2rx("190705_PIK_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_TRAC_2_CIGAR_summary.csv
+filenames <- list.files("c:/Export/20191202_307_360/Seq_files/", pattern=glob2rx("20191209_PIK_*_CIGAR_summary.csv"), full.names=TRUE) # 190705_B2M_2_CIGAR_summary.csv
 
 
 max_list <- list()
 
 
-for (sample in filenames[c(1:3)])
+for (sample in filenames[c(1:4)])
 {
   df<-read.csv(sample, header=TRUE, sep=",")
   melt <- aggregate(df$Percentage, by=list(Position=df$Position), FUN=sum)
@@ -576,7 +635,7 @@ for (sample in filenames[c(1:3)])
 
 max_max <- max(unlist(max_list))
 
-for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y axis
+for (sample in filenames[c(1:4)])
 {
   mydataPIK <- read.csv(sample, header=TRUE, sep=",")
   mydataPIK$Position= as.numeric(mydataPIK$Position)+8901263
@@ -596,19 +655,25 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
   
   ### Penta DF Block #####
   
-  alt <-mydataPIK
-  alt <-select(alt,Variant,Hit,Var_len)
+  
+  alt1 <-mydataPIK
+  
+  alt <- alt1[,c("Variant","Hit","Var_len")]
   
   deletion <- subset(alt, Variant=='D')
   insertion <- subset(alt, Variant=='I')
   
+  if (nrow(deletion)!=0){
+    agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
+    agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+    agg_del$Variant <- "D"
+  }else {agg_del <-Dummy_del_agg}
   
-  agg_del <- aggregate(Hit ~ Var_len, data=deletion, FUN=sum)
-  agg_del$Hit = 0 - as.numeric(agg_del$Hit)
+  if (nrow(insertion)!=0){
+    agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
+    agg_ins$Variant <- "I"
+  }else {agg_ins <-Dummy_ins_agg }
   
-  agg_ins <- aggregate(Hit ~ Var_len, data=insertion, FUN=sum)
-  agg_del$Variant <- "D"
-  agg_ins$Variant <- "I"
   
   new_data = rbind(agg_del,agg_ins)
   
@@ -628,8 +693,8 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
     ]
   
    
-  link <- substr(sample,53,57)
-  link_no <-substr(sample,57,57)
+  link <- substr(sample,47,49)
+  link_no <-substr(sample,51,51)
   har <- as.integer((link_no))
   new_title <- toString(samp_name[har])
   
@@ -647,18 +712,28 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
   
   sample <- tracks("Percentage"=PIK_cigar,"PIK"=PIK_loc,heights=c(0.1,0.01),label.text.cex=c(1,1),title = new_title,label.bg.fill=('white'))
   
-  hope = paste(link, ".png", sep="")
+  hope = paste(link,link_no, ".png", sep="")
   ggsave(hope)
   
-  penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
-    theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
-    ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(limits=c(-5000,2000),label=function(Hit){abs(Hit)})+ 
-    ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+  if (max(abs(new_data$Hit)) > 1000){
+    
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(label=function(Hit){abs(Hit)})+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))
+    
+  }else {
+    penta <- ggplot(new_data, aes(x = Var_len, y = Hit, fill=Variant)) + geom_bar(stat="identity", position="identity")+
+      theme_bw() + scale_fill_manual(values=c(D="red", I="green4"),labels=c("Deletion", "Insertion"))+theme(legend.position="none") + 
+      ylab('Reads')+ xlab('Indel Length (bp)') + scale_y_continuous(limits = c(-100000,100000))+ 
+      ggtitle("decoy") + theme(plot.title = element_text(color="white", size=15))}
   
-  penta_hope = paste(link, "_penta.png", sep="")
+  
+  
+  penta_hope = paste(link,link_no, "_penta.png", sep="")
   ggsave(penta_hope, width = 2, height = 5)
-  samp_plot <- image_read(paste(link,".png",sep=""))
-  pent_plot <- image_read(paste(link,"_penta.png",sep=""))
+  samp_plot <- image_read(paste(link,link_no,".png",sep=""))
+  pent_plot <- image_read(paste(link,link_no,"_penta.png",sep=""))
   
   pen_cat <- image_append(c(samp_plot,pent_plot))
   pen_cat <- image_border(pen_cat, "grey", "2x1")
@@ -668,20 +743,21 @@ for(sample in filenames) #<----- 1st & 5th samples, retains PIKk labels and Y ax
   
   
   
-  image_write(pen_cat,(paste(link,"_Cat.png",sep="")))
+  image_write(pen_cat,(paste(link,link_no,"_Cat.png",sep="")))
   
 }
 
-PIK_1 <- image_read("PIK_1_Cat.png")
-PIK_2 <- image_read("PIK_2_Cat.png")
-PIK_3 <- image_read("PIK_3_Cat.png")
-PIK_4 <- image_read("PIK_4_Cat.png")
-PIK_5 <- image_read("PIK_5_Cat.png")
+PIK_1 <- image_read("PIK1_Cat.png")
+PIK_2 <- image_read("PIK2_Cat.png")
+PIK_3 <- image_read("PIK3_Cat.png")
+PIK_4 <- image_read("PIK4_Cat.png")
+# PIK_5 <- image_read("PIK5_Cat.png")
 
 
-tiger_style <- image_append(c(PIK_5, PIK_1))
-method_style <- image_append(c(PIK_2, PIK_3))
-woo <- image_append(c(PIK_4,PIK))
+tiger_style <- image_append(c(PIK_1, PIK_2))
+method_style <- image_append(c(PIK_3, PIK_4))
+# woo <- image_append(c(PIK_4,PIK))
+woo <- PIK
 ghost <- image_append(c(tiger_style,method_style,woo),stack=TRUE)
 
 

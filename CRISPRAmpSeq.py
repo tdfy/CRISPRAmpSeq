@@ -122,6 +122,7 @@ for Tag, comp in configed.groupby('Target'):
         ###------ --------------------------------------------------------------------------------------------------------###  ^^^^ filters reads by proportion criteria based on number of controls
 
         data[samp].iloc[:,4] = np.where((data[samp].iloc[:,5].isin(germSNP[comp['Target'].iloc[0]])), 'NoEdit', data[samp].iloc[:,4])  ##<------- labels 'Edit' column according to list of germline SNP CIGAR strings; if present in germSNP dict reassigned as 'NoEdit'
+        data[samp] = data[samp][data[samp]['Type'].astype(str) != 'unknown'] ##<-- removes 'unknown' CIGAR strings that break CIGAR module
 
          ###---------------------------------------------------------------------------------------------------------------###  ^^^^ Removes known germline variants {convert to dictionary}
 

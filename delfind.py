@@ -20,7 +20,8 @@ import pysam
 
 bam = sys.argv[1]
 path = sys.argv[2]
-Target = sys.argv[3]
+Target = int(sys.argv[3])
+ref_start = int(sys.argv[4])
 
 CIGAR_list = []
 String_list = [1,2]
@@ -32,7 +33,7 @@ ch_list = []
 CIG_dict = {}
 ID = []
 cig_df = pd.DataFrame()
-
+len_list = []
 
 bamFP = pysam.Samfile(path + bam, "rb");
 
@@ -41,6 +42,9 @@ for read in bamFP:
         cig_string = read.cigar
         CIGAR_list.append(cig_string)
         cigarette = read.cigarstring
+
+        read_len = int(read.infer_read_length())
+        len_list.append(read_len)
 
         for index, tup in enumerate(cig_string):
             ch = cig_string[index][0]
@@ -78,7 +82,7 @@ cig_df['CIGAR'] = cig_pack
 cig_df['Var_len'] = varlen_list
 
 cig_df['Position'] = pos_list
-cig_df['Position_Start'] = cig_df['Position'].astype(int) + 164419787  #<------------------- make starting reference coordinate a variable
+cig_df['Position_Start'] = cig_df['Position'].astype(int) + ref_start  #<------------------- make starting reference coordinate a variable
 cig_df['Position_Stop'] = cig_df['Position_Start'].astype(int) + cig_df['Var_len'].astype(int)
 
 cig_df['Variant'] = var_list
@@ -86,12 +90,12 @@ cig_df['ch'] = ch_list
 
 cig_df['Variant'] = cig_df['Variant'].map({1:'I', 2:'D'})
 cig_df['ID'] = ID
-cig_df['Target'] = Target
+cig_df['Target'] = Target + ref_start
 
 
-cig_df['On_Target'] = np.where(((cig_df['Target'].astype(int)).between(cig_df['Position_Start'].astype(int), cig_df['Position_Stop'].astype(int))),True,False)
+cig_df['On_Target'] = np.where((abs((cig_df['Target'] - cig_df['Position_Start']) <=10)) |  (abs((cig_df['Target'] - cig_df['Position_Stop'] <=10))),True,False)
 
-cig_df['Off_Target'] = np.where((cig_df['Var_len'].astype(int) > 50) & (cig_df['On_Target'] == False),True,False)
+cig_df['Off_Target'] = np.where((cig_df['Var_len'].astype(int) > 10) & (cig_df['On_Target'] == False),True,False)
 
 cig_df = cig_df.loc[(cig_df['On_Target'] == True) | (cig_df['Off_Target'] == True) ]
 
@@ -122,8 +126,11 @@ cig_df['Hit'] = 1/len(CIGAR_list)*100
 cig_df = cig_df[['Position','Position_Start','Position_Stop','Variant','Var_len','ch','Hit','ID']]
 cig_df.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
 #
+
+print(bamFP)
 print("sample", bam)
 print("Read Count",len(CIGAR_list))
 print("Total Edits", len(np.unique(cig_df['ID'])))
+print("Number of amplicons capturing Target",sum(i > Target + 50 for i in len_list))
 print("Script is Finished...")
 sys.exit()

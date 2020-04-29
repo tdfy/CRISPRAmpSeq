@@ -18,10 +18,8 @@ from cigar import Cigar
 import collections
 import pysam
 
-# bam = sys.argv[1]
 path = sys.argv[1]
 Target = int(sys.argv[2])
-# ref_start = int(sys.argv[3])
 
 bam_list = []
 final_sum_df = pd.DataFrame()
@@ -35,11 +33,9 @@ with open(path+'/'+'bam_list', 'r') as f:
         j = j.strip('\n')
         bam_list.append(j)
 
-# print(bam_list)
 for bam in bam_list:
 
     CIGAR_list = []
-    # String_list = [1,2]
     pos_list = []
     varlen_list = []
     var_list = []
@@ -69,13 +65,9 @@ for bam in bam_list:
             CIGAR_list.append(cig_string)
             cigarette = read.cigarstring
             C_list.append(cigarette)
-            # print(cigarette)
-
-            # read_len = int(read.infer_read_length())
             read_len = read.reference_length
 
             len_list.append(read_len)
-
 
             query = read.qname
             query_list.append(query)
@@ -207,7 +199,7 @@ for bam in bam_list:
     df_count= df_cat[df_cat['Count_log'].astype(str) != '[False]']
 
     tot_edit =  df_count.ID.nunique()
-    perc = (on_targ/len(filter_df))*100
+    perc = (tot_edit/on_targ)*100
     max_indel = max(cig_df['Var_len'])
     max_indel_on = max(df_cat_on.Var_len)
     mean_indel = np.mean(cig_df['Var_len'])
@@ -215,15 +207,17 @@ for bam in bam_list:
     mean_read_len = np.mean(len_list)
     first_quant = np.percentile(len_list, 25)
     third_quant = np.percentile(len_list, 75)
+    full_amp = sum(i > 7000 for i in len_list)
 
     summary = [{"Sample":bam,"Read_Count": len(filter_df),"On_Targ_Cov":on_targ,"On_Targ_Edit":tot_edit, "Perc_Edited":perc, "Max_ON_Target_Indel_Size":max_indel_on,
-    "Max_indel_Size":max_indel,"Mean_indel":mean_indel,"Indel_std":std_indel,"Mean_Read_len":mean_read_len,"Len_25":first_quant,"Len_75":third_quant}]
+    "Max_indel_Size":max_indel,"Mean_indel":mean_indel,"Indel_std":std_indel,"Mean_Read_len":mean_read_len,"Len_25":first_quant,"Len_75":third_quant, "Intact_Amplicons":full_amp}]
     summary_df = pd.DataFrame(summary)
 
     sum_dict[bam] = summary_df
 
     # final_sum_df.append(summary_df)
 final =  pd.concat(sum_dict.values(),ignore_index=True)
+final.to_csv(os.path.join(path+bam+r'_summary.csv'), sep=',', header=True,index=True)
 
 print(final)
 

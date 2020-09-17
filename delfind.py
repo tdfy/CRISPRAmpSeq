@@ -17,6 +17,7 @@ import os
 from cigar import Cigar
 import collections
 import pysam
+from matplotlib import pyplot as plt
 
 path = sys.argv[1]
 Target = int(sys.argv[2])
@@ -59,10 +60,9 @@ for bam in bam_list:
 
     bamFP = pysam.Samfile(path + bam, "rb");
 
-    for read in bamFP.fetch('14'):
+    for read in bamFP.fetch('chrX:164419787-164433916'):  #14
 
 
-    # for read in bamFP:
         if( not( read.is_unmapped ) ):
             # print(read.)
             cig_string = read.cigar
@@ -95,7 +95,6 @@ for bam in bam_list:
 
     filter_df = filter_df.drop_duplicates(subset=['Read_Name'],keep='first')
 
-    # print(filter_df.loc[filter_df.Read_Name == '75e7d3e7-976a-477e-ae8e-9f518d6f8a1b'])
 
     CIG_dict = dict(zip(filter_df['CIGAR_list'], filter_df['Read_Name']))
     COO_dict = dict(zip(filter_df['CIGAR_list'], filter_df['start_coo']))
@@ -111,11 +110,6 @@ for bam in bam_list:
                 CIG_list.remove(CIG_list[0])
             else:
                 pass
-            # for z in range(len(CIG_list)):
-            #     if CIG_list[z][1] is 'I':
-            #         CIG_list.remove(CIG_list[z])
-            #     else:
-            #         pass
 
             ch = CIG_list[index][1]
 
@@ -152,9 +146,7 @@ for bam in bam_list:
     cig_df['Read_len'] = cig_df['ID'].map(read_len_dict)
 
 
-    cig_df['ID']=cig_df['ID'].map(CIG_dict)   ### <<<<------------------------------------------------------------------------------------------------------------------------------------------------ Added quotes to variable, must replace!!!
-
-    # cig_df['Target'] = Target -cig_df['COO_start']
+    cig_df['ID']=cig_df['ID'].map(CIG_dict)  
     cig_df['Target'] = Target
 
 
@@ -171,29 +163,13 @@ for bam in bam_list:
 
     else:
 
-        # cig_df['On_Target'] = np.where((cig_df.Edit_Dis_Start <=5) | (cig_df.Edit_Dis_Stop <=5) |
-        # ((cig_df['Target'].astype(int)).between(cig_df['Position_Start'].astype(int), cig_df['Position_Stop'].astype(int))) &
-        # (cig_df['Var_len'].astype(int) > 2),True,False)
-
         cig_df['On_Target'] = np.where((cig_df.Edit_Dis_Start <=3) | (cig_df.Edit_Dis_Stop <=3) |
         ((cig_df['Target'].astype(int)).between(cig_df['Position_Start'].astype(int), cig_df['Position_Stop'].astype(int))),True,False)
 
-        # cig_df['On_Target'] = np.where((cig_df.Edit_Dis_Start <=10) | (cig_df.Edit_Dis_Stop <=10) |
-        # ((cig_df['Target'].astype(int)).between(cig_df['Position_Start'].astype(int), cig_df['Position_Stop'].astype(int))) & (cig_df['Var_len'].astype(int) > 2),True,False)
-
-###------------ORG-------------------------------##
-    # cig_df['On_Target'] = np.where((cig_df['COO_start'] <=1000) & (cig_df['Read_len'] < Target),False,cig_df['On_Target'])
-    # cig_df['On_Target'] = np.where(cig_df['COO_start'] > Target, False, cig_df['On_Target'])
-    # cig_df['Cov_Off'] = np.where((cig_df['COO_start'] <=1000) & (cig_df['Read_len'] < Target),1,0)
-    # cig_df['Cov_Off'] = np.where(cig_df['COO_start'] > Target, 1, cig_df['Cov_Off'])
 ###----------------------------------------------##
     cig_df['Cov_Off'] = np.where((cig_df['COO_start'] <=Target) & (cig_df['COO_start'] + cig_df['Read_len'] < Target),1,0)
     cig_df['Cov_Off'] = np.where(cig_df['COO_start'] > Target, 1, cig_df['Cov_Off'])
 
-    # cig_df.loc[cig_df.ID == '75e7d3e7-976a-477e-ae8e-9f518d6f8a1b'].to_csv(os.path.join(path+'hooray1'+r'.csv'), sep=',', header=True,index=True)
-
-    # cig_df.to_csv(os.path.join(path+bam+r'_EXPL.csv'), sep=',', header=True,index=True)
-    # print(cig_df)
     insertion = cig_df.loc[(cig_df['Variant'] == 'I')]
     Ptable_ins = insertion.pivot_table(index=['Variant','Var_len','ID','Position','Position_Start','Position_Stop','Target','On_Target'], values= ['ch'],aggfunc={'count'})
     Ptable2_ins = pd.DataFrame(Ptable_ins)
@@ -216,14 +192,6 @@ for bam in bam_list:
 
     #_____Export Block________________#
 
-    # df_cat.to_csv(os.path.join(path+bam+r'.csv'), sep=',', header=True,index=True)
-
-    # cig_df = cig_df.iloc[0:5,]
-    # cig_df['Hit'] = 1/sum(i > Target + 50 for i in len_list)*100
-    # cig_df = cig_df[['Position','Position_Start','F_Stop','Variant','Var_len','ch','ID']]
-    # cig_df.to_csv(os.path.join(path+bam+r'CIGAR_STRING.csv'), sep=',', header=True,index=True)
-    #
-
     off_df = cig_df.loc[cig_df['Cov_Off'] == 1] #number of unique reads off target subtracted from the total reads
     on_targ = len(filter_df )- off_df.ID.nunique()
     # print(len(filter_df),on_targ)
@@ -236,17 +204,13 @@ for bam in bam_list:
 
     df_cat['Count_log'] = df_cat.groupby(['ID'])['On_Target'].transform('unique')
     # df_count= df_cat[df_cat['Count_log'].astype(str) != '[False]']
-
+    df_SV = df_cat[df_cat['Var_len'] >=500]
 
     if platform is 'pb':
         df_count= df_cat[df_cat['Count_log'].astype(str) != '[False]']
 
     else:
         df_count= df_cat[df_cat['On_Target'].astype(str) == 'True']
-        # df_count= df_count1[df_count1['Var_len'].astype(int) > 2]
-
-    print(df_count)
-    # print(len(df_cat.On_Target == 'True'))
 
     tot_edit =  df_count.ID.nunique()
 
@@ -263,10 +227,13 @@ for bam in bam_list:
     mean_read_len = np.mean(len_list)
     first_quant = np.percentile(len_list, 25)
     third_quant = np.percentile(len_list, 75)
-    full_amp = sum(i > 7000 for i in len_list)
+    full_amp = sum(i > 5000 for i in len_list)
+    var_len_500 = (df_SV.ID.nunique()/len(filter_df))*100
+
+
 
     summary = [{"Sample":bam,"Read_Count": len(filter_df),"On_Targ_Cov":on_targ,"On_Targ_Edit":tot_edit, "Perc_Edited":perc, "Max_ON_Target_Indel_Size":max_indel_on,
-    "Max_indel_Size":max_indel,"Mean_indel":mean_indel,"Indel_std":std_indel,"Indel_25":first_quant_indel,"Indel_75":third_quant_indel,"Mean_Read_len":mean_read_len,"Len_25":first_quant,"Len_75":third_quant, "Intact_Amplicons":full_amp}]
+    "Max_indel_Size":max_indel,"Indel_>=500bp_%":var_len_500,"Mean_indel":mean_indel,"Indel_std":std_indel,"Indel_25":first_quant_indel,"Indel_75":third_quant_indel,"Mean_Read_len":mean_read_len,"Len_25":first_quant,"Len_75":third_quant, "Intact_Amplicons":full_amp}]
     summary_df = pd.DataFrame(summary)
 
     sum_dict[bam] = summary_df
